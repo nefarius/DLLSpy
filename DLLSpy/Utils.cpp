@@ -24,7 +24,7 @@ void GetDllFromToken(string & token)
 	transform(sLowerCaseToken.begin(), sLowerCaseToken.end(), sLowerCaseToken.begin(), ::tolower);
 	size_t index = sLowerCaseToken.find(".dll");
 
-	//Ignore DLL, if it is in the form of  api-ms-win-eventing-provider-l1-1-0.dll, weird microsft rerouting to orginal dll
+	//Ignore DLL, if it is in the form of  api-ms-win-eventing-provider-l1-1-0.dll, weird Microsoft rerouting to original dll
 	//Ignore DLL, if it is in the form of  esi*.dll, too many options
 	if (index == string::npos ||
 		(count(sLowerCaseToken.begin(), sLowerCaseToken.end(), '-') > 3) ||

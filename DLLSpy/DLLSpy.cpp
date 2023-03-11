@@ -102,9 +102,9 @@ lblCleanup:
 		cout << "Usage: DLLSPY.exe" << endl;
 		cout << "-d [mandatory] Find DLL hijacking in all running processes and services." << endl;
 		cout << "-s [optional] Search for DLL references in the binary files of current running processes and services." << endl;
-		cout << "-r n [optional] Recursion search for DLL references in found DLL files privous scan." << endl << "   n is the number is the level of the recursion" << endl;
+		cout << "-r n [optional] Recursion search for DLL references in found DLL files previous scan." << endl << "   n is the number is the level of the recursion" << endl;
 		cout << "-o [optional] Output path for the results in csv format of" << endl;
-		cout << "               By ommiting this option, a defulat result file would be created on the desktop of the current user." << endl;
+		cout << "               By omitting this option, a default result file would be created on the desktop of the current user." << endl;
 		cout << "               Named after the name of the computer .csv" << endl;
 		
 	}
@@ -143,7 +143,7 @@ ESTATUS FindDllHjacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD 
 	ProcessContainer p = ProcessContainer();  
 	fLogFile.open("DLLSpy.log");
 
-	cout << "Start analyzing processes dynamicly" << endl;
+	cout << "Start analyzing processes dynamically" << endl;
 	
 
 	fLogFile << "Dynamic Extraction" << endl;
@@ -559,7 +559,7 @@ void Beautify(PProcessContainer p, string message, string sevirity)
 				if (count == 1)
 				{
 					string sFileName = GetFilename(it.sBinaryPath);
-					fNewLog << "Application:  " << sFileName << "," << "Path:  " << it.sBinaryPath.c_str() << "," << "User:  " << it.sUserName << "," << "Sevirtiy:  " << sevirity << endl;
+					fNewLog << "Application:  " << sFileName << "," << "Path:  " << it.sBinaryPath.c_str() << "," << "User:  " << it.sUserName << "," << "Severity:  " << sevirity << endl;
 					fNewLog << "Modules" << endl;
 				}
 				fNewLog << j.sBinaryPath.c_str() << endl;
