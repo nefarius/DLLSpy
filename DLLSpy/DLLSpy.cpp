@@ -10,7 +10,7 @@ ofstream fLogFile;
 ofstream fNewLog;
 string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 
-unsigned char READABLE_CHARCATERS[90] = "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^&*()_+=-`{}[]:;,.? ";
+unsigned char READABLE_CHARACTERS[90] = "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^&*()_+=-`{}[]:;,.? ";
 
 int _tmain(int argc, TCHAR *argv[])
 {
@@ -335,7 +335,7 @@ ESTATUS GetServicesDLLS(PProcessContainer p)
 	for (auto sServiceName : p->vsProcessBinary)
 	{
 			string sRawOutput;
-			char *a = m.GenerateStrings(READABLE_CHARCATERS, (char*)sServiceName.c_str(), 6, "\n", &lOutputSize, sRawOutput);
+			char *a = m.GenerateStrings(READABLE_CHARACTERS, (char*)sServiceName.c_str(), 6, "\n", &lOutputSize, sRawOutput);
 			sRawOutput = string(&a[0], &a[lOutputSize]);
 			free(a);
 
