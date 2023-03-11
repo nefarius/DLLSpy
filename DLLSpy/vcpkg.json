@@ -1,0 +1,10 @@
+{
+  "name": "dllspy",
+  "version": "1.0.0",
+  "description": "dllspy",
+  "license": "LGPL-3.0-only",
+  "supports": "!(arm | uwp)",
+  "dependencies": [
+	"jsoncpp"
+  ]
+}
