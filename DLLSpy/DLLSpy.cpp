@@ -15,17 +15,6 @@ unsigned char READABLE_CHARACTERS[90] = "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL
 int _tmain(int argc, TCHAR* argv[])
 {
 	ESTATUS eReturn = ESTATUS_INVALID;
-	string banner =
-		R"( ______   _        _        _______  _______          
-(  __  \ ( \      ( \      (  ____ \(  ____ )|\     /|
-| (  \  )| (      | (      | (    \/| (    )|( \   / )
-| |   ) || |      | |      | (_____ | (____)| \ (_) / 
-| |   | || |      | |      (_____  )|  _____)  \   /  
-| |   ) || |      | |            ) || (         ) (   
-| (__/  )| (____/\| (____/\/\____) || )         | |   
-(______/ (_______/(_______/\_______)|/          \_/                                                        
-)";
-	cout << banner << endl;
 
 	if (!IsUserAnAdmin())
 	{
@@ -39,7 +28,6 @@ lblCleanup:
 		cout << "DLLSpy exited with error: " << eReturn << endl;
 	return 0;
 }
-
 
 ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
 {
@@ -89,8 +77,6 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
 			eReturn = ESTATS_MISSING_ARGUMENTS;
 			goto lblCleanup;
 		}
-		if (!sOutputPath.compare(""))
-			AssembleCSVPath(sOutputPath);
 
 		eReturn = FindDllHijacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel);
 	}
@@ -103,36 +89,7 @@ lblCleanup:
 		cout << "-d [mandatory] Find DLL hijacking in all running processes and services." << endl;
 		cout << "-s [optional] Search for DLL references in the binary files of current running processes and services." << endl;
 		cout << "-r n [optional] Recursion search for DLL references in found DLL files previous scan." << endl << "   n is the number is the level of the recursion" << endl;
-		cout << "-o [optional] Output path for the results in csv format of" << endl;
-		cout << "               By omitting this option, a default result file would be created on the desktop of the current user." << endl;
-		cout << "               Named after the name of the computer .csv" << endl;
-
 	}
-	return eReturn;
-}
-
-
-ESTATUS AssembleCSVPath(string& OutputPath)
-{
-	TCHAR cDesktopPath[MAX_PATH] = { 0 };
-	TCHAR cComputerName[MAX_PATH] = { 0 };
-	string Extenstion = ".csv";
-	DWORD dwSize = MAX_PATH;
-	BOOL bSuccess = false;
-	ESTATUS eReturn = ESTATUS_INVALID;
-
-	GetComputerNameA(cComputerName, &dwSize);
-	bSuccess = SHGetSpecialFolderPath(HWND_DESKTOP, cDesktopPath, CSIDL_DESKTOP, FALSE);
-	if (!bSuccess)
-	{
-		cout << "Could not find home directory" << endl;
-		goto lblCleanup;
-
-	}
-	OutputPath = string(cDesktopPath) + "\\" + string(cComputerName) + Extenstion;
-	eReturn = ESTATUS_SUCCESS;
-
-lblCleanup:
 	return eReturn;
 }
 
