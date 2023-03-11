@@ -12,7 +12,7 @@ string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\W
 
 unsigned char READABLE_CHARACTERS[90] = "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^&*()_+=-`{}[]:;,.? ";
 
-int _tmain(int argc, TCHAR *argv[])
+int _tmain(int argc, TCHAR* argv[])
 {
 	ESTATUS eReturn = ESTATUS_INVALID;
 	string banner =
@@ -29,11 +29,11 @@ int _tmain(int argc, TCHAR *argv[])
 
 	if (!IsUserAnAdmin())
 	{
-		cout << "DLLSpy must be activated with elevated privileges, shutting down." << endl;	
+		cout << "DLLSpy must be activated with elevated privileges, shutting down." << endl;
 		goto lblCleanup;
 	}
 	eReturn = ParseCommandLineArguments(argc, argv);
-		
+
 lblCleanup:
 	if (ESTATUS_FAILED(eReturn) && eReturn != ESTATS_MISSING_ARGUMENTS)
 		cout << "DLLSpy exited with error: " << eReturn << endl;
@@ -41,7 +41,7 @@ lblCleanup:
 }
 
 
-ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[])
+ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
 {
 	string sOutputPath = "";
 	bool bDynamic = false;
@@ -57,14 +57,14 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[])
 			if (!_stricmp(argv[i], "-o"))
 			{
 				if (argv[i + 1] != NULL)
-					sOutputPath = string(argv[i + 1]);			
+					sOutputPath = string(argv[i + 1]);
 				else
 				{
 					eReturn = ESTATS_MISSING_ARGUMENTS;
 					goto lblCleanup;
 				}
 			}
-			
+
 			else if (!_stricmp(argv[i], "-s"))
 				bStatic = true;
 			else if (!_stricmp(argv[i], "-d"))
@@ -72,7 +72,7 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[])
 
 			else if (!_stricmp(argv[i], "-r"))
 			{
-				if (argv[i+1] != NULL)
+				if (argv[i + 1] != NULL)
 				{
 					int command_level = *argv[i + 1];
 					if (!isdigit(command_level))
@@ -80,7 +80,7 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[])
 					bRecursive = true;
 					dwRecursionLevel = command_level - 0x30;
 				}
-				else 
+				else
 					goto lblCleanup;
 			}
 		}
@@ -106,13 +106,13 @@ lblCleanup:
 		cout << "-o [optional] Output path for the results in csv format of" << endl;
 		cout << "               By omitting this option, a default result file would be created on the desktop of the current user." << endl;
 		cout << "               Named after the name of the computer .csv" << endl;
-		
+
 	}
 	return eReturn;
 }
 
 
-ESTATUS AssembleCSVPath(string &OutputPath)
+ESTATUS AssembleCSVPath(string& OutputPath)
 {
 	TCHAR cDesktopPath[MAX_PATH] = { 0 };
 	TCHAR cComputerName[MAX_PATH] = { 0 };
@@ -140,24 +140,24 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 {
 
 	ESTATUS eReturn = ESTATUS_INVALID;
-	ProcessContainer p = ProcessContainer();  
+	ProcessContainer p = ProcessContainer();
 	fLogFile.open("DLLSpy.log");
 
 	cout << "Start analyzing processes dynamically" << endl;
-	
+
 
 	fLogFile << "Dynamic Extraction" << endl;
-	fLogFile << "Severity," << "Exist,"<< "Binary," << "DLL" << endl;
+	fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
 	eReturn = EnumerateRunningProcesses(&p);
 	fLogFile << endl;
 	cout << "Done looking for dynamic processes hijacking" << endl;
 	cout << "======================================================================================" << endl;
-	
+
 	if (bStatic)
 	{
 		cout << "Start analyzing processes executables, static analysis" << endl;
 		fLogFile << "Static Extraction" << endl;
-		fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl; 
+		fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
 
 		eReturn = EnumerateProcessesBinaries(&p);
 		fLogFile << endl;
@@ -165,7 +165,7 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 		cout << "=================================================================================" << endl;
 	}
 
-	if (bRecrusive && level  < 5)
+	if (bRecrusive && level < 5)
 	{
 		cout << "Start Recursive search" << endl;
 		fLogFile << "Recursive Extraction" << endl;
@@ -180,7 +180,8 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 	cout << "Results are in: " << OutputPath << endl;
 	fLogFile.close();
 
-	print(&p, OutputPath);
+	//,print(&p, OutputPath);
+	printAsJSON(&p);
 	return eReturn;
 }
 
@@ -190,7 +191,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 	PROCESSENTRY32 processEntry;
 	MODULEENTRY32 moduleEntry;
 	HANDLE hImpersonatedToken = NULL;
-	TCHAR * processName = "explorer.exe";
+	TCHAR* processName = "explorer.exe";
 	ESTATUS eReturn = ESTATUS_INVALID;
 	string sUserName;
 	string sDomainName;
@@ -255,12 +256,12 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 
 				if (bDirAccessAllowd && bFileAllwod)
 				{
-					DLLData dData = DLLData(sModuleName, "High", "Low", true);
+					DLLData dData = DLLData(sModuleName, "high", "low", true);
 					pData.vsDLLs.insert(dData);
 					if (DEBUG_PRINT)
 					{
-						cout << "High Severity in process: " << sProcessName.c_str() << "\tDLL: " << sModuleName.c_str() << endl;
-						fLogFile << sUserName.c_str() << "," << "High," << "Yes, " << sProcessName.c_str() << "," << sModuleName.c_str() << endl;
+						cout << "high Severity in process: " << sProcessName.c_str() << "\tDLL: " << sModuleName.c_str() << endl;
+						fLogFile << sUserName.c_str() << "," << "high," << "Yes, " << sProcessName.c_str() << "," << sModuleName.c_str() << endl;
 					}
 				}
 			}
@@ -329,34 +330,34 @@ lblCleanup:
 
 ESTATUS GetServicesDLLS(PProcessContainer p)
 {
-	ESTATUS eReturn = ESTATUS_INVALID;	
+	ESTATUS eReturn = ESTATUS_INVALID;
 	StringsExtractor m;
 	long lOutputSize;
 	for (auto sServiceName : p->vsProcessBinary)
 	{
-			string sRawOutput;
-			char *a = m.GenerateStrings(READABLE_CHARACTERS, (char*)sServiceName.c_str(), 6, "\n", &lOutputSize, sRawOutput);
-			sRawOutput = string(&a[0], &a[lOutputSize]);
-			free(a);
+		string sRawOutput;
+		char* a = m.GenerateStrings(READABLE_CHARACTERS, (char*)sServiceName.c_str(), 6, "\n", &lOutputSize, sRawOutput);
+		sRawOutput = string(&a[0], &a[lOutputSize]);
+		free(a);
 
-			string token;
-			istringstream tokenStream(sRawOutput);
-			while (getline(tokenStream, token, '\n'))
-			{
+		string token;
+		istringstream tokenStream(sRawOutput);
+		while (getline(tokenStream, token, '\n'))
+		{
 
-				//Double filtring, make sure we don't have any wierd chracters
-				GetDllFromToken(token);
-				GetDllFromToken(token);
+			//Double filtring, make sure we don't have any wierd chracters
+			GetDllFromToken(token);
+			GetDllFromToken(token);
 
-				if (token.compare(""))
-					if (find(p->msvStaticProcessMap[sServiceName].begin(), p->msvStaticProcessMap[sServiceName].end(), token) == p->msvStaticProcessMap[sServiceName].end())
-					{
-						p->msvStaticProcessMap[sServiceName].push_back(token);
-					}
-			}
+			if (token.compare(""))
+				if (find(p->msvStaticProcessMap[sServiceName].begin(), p->msvStaticProcessMap[sServiceName].end(), token) == p->msvStaticProcessMap[sServiceName].end())
+				{
+					p->msvStaticProcessMap[sServiceName].push_back(token);
+				}
 		}
-		eReturn = ESTATUS_SUCCESS;
-		return eReturn;
+	}
+	eReturn = ESTATUS_SUCCESS;
+	return eReturn;
 }
 
 
@@ -364,7 +365,7 @@ ESTATUS GetServicesDLLS(PProcessContainer p)
 ESTATUS GetHijackedDirectories(PProcessContainer p)
 {
 	HANDLE hImpersonatedToken = NULL;
-	TCHAR *sProcessName = "explorer.exe";
+	TCHAR* sProcessName = "explorer.exe";
 	ESTATUS eReturn = ESTATUS_INVALID;
 	//string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 	string sUserName;
@@ -377,7 +378,7 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 
 
 	eReturn = ESTATUS_SUCCESS;
-	for (auto &map_iter : p->msvStaticProcessMap)
+	for (auto& map_iter : p->msvStaticProcessMap)
 	{
 		BOOL bExist = FALSE;
 		string ProcessPath = map_iter.first;
@@ -392,7 +393,7 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 			DLLData dData = DLLData();
 			BOOL bDirAccessAllowd = FALSE;
 			BOOL bFileAllwod = FALSE;
-			
+
 			// If the DLL is in full path foramt, there is no chance for hijacking even if the DLL exist
 			if (PathFileExistsA(sDllName.c_str()))
 				break;
@@ -404,7 +405,7 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 				CanAccessDirectory(sProcessDir.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowd);
 				CanAccessDirectory(sOptionalDllPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllwod);
 
-				if(!bDirAccessAllowd || !bFileAllwod)
+				if (!bDirAccessAllowd || !bFileAllwod)
 					isSecureDir = TRUE;
 			}
 			else
@@ -425,24 +426,24 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 				if (dData.bExist)
 					dData.sServirity = "high";
 				else if (ends_with(pData.sBinaryPath, "dll"))
-					dData.sServirity = "Medium";
+					dData.sServirity = "medium";
 				else
-					dData.sServirity = "Low";
+					dData.sServirity = "low";
 
 				dData.bExist = bExist == TRUE ? true : false;
 				dData.sBinaryPath = sDllName;
-				dData.sPermissionLevel = "Low";				
+				dData.sPermissionLevel = "low";
 				pData.vsDLLs.insert(dData);
 
 				if (DEBUG_PRINT)
 				{
 					if (bExist)
 					{
-						fLogFile << sUserName.c_str() << "," << "High, " << "Yes," << ProcessPath.c_str() << "," << sDllName << endl;
+						fLogFile << sUserName.c_str() << "," << "high, " << "Yes," << ProcessPath.c_str() << "," << sDllName << endl;
 					}
 					else if (!isSecureDir)
 					{
-						fLogFile << sUserName.c_str() << "," << "Low, " << "No," << ProcessPath.c_str() << "," << sDllName << endl;
+						fLogFile << sUserName.c_str() << "," << "low, " << "No," << ProcessPath.c_str() << "," << sDllName << endl;
 					}
 				}
 			}
@@ -451,10 +452,10 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 		if (!pData.vsDLLs.empty())
 		{
 			auto it = BinaryExists(p, pData.sBinaryPath);
-			if (it != p->vProcessData.end())		
+			if (it != p->vProcessData.end())
 				it->vsDLLs.insert(pData.vsDLLs.begin(), pData.vsDLLs.end());
 			else
-				p->vProcessData.push_back(pData);			
+				p->vProcessData.push_back(pData);
 		}
 	}
 lblCleanup:
@@ -472,7 +473,7 @@ void RecursiveChecking(PProcessContainer p)
 
 	p->vsProcessBinary.clear();
 
-	for (auto &map_iter : p->msvStaticProcessMap)
+	for (auto& map_iter : p->msvStaticProcessMap)
 	{
 		string ProcessPath = map_iter.first;
 		string sProcessDir = GetDirPath(ProcessPath) + "\\";
@@ -487,7 +488,7 @@ void RecursiveChecking(PProcessContainer p)
 			// In case dll name contains expanded environment variables
 			if (PathFileExistsA(sDllName.c_str()))
 				sDefinetDLLPath = sDllName;
-			
+
 			else if (PathFileExistsA(sOptionalDllPath.c_str()))
 				sDefinetDLLPath = sOptionalDllPath;
 			else
@@ -517,7 +518,7 @@ vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPa
 		if (!(*it).sBinaryPath.compare(sBinaryPath))
 			return it;
 	}
-	
+
 	return p->vProcessData.end();
 }
 
@@ -527,9 +528,9 @@ void print(PProcessContainer p, string sOutputPath)
 
 	fNewLog.open(sOutputPath.c_str(), std::ofstream::out | std::ofstream::app);
 
-	Beautify(p, "Critical endangered applications", "High");
-	Beautify(p, "Medium endangered applications", "Medium");
-	Beautify(p, "Least endangered applications", "Low");
+	Beautify(p, "Critical endangered applications", "high");
+	Beautify(p, "medium endangered applications", "medium");
+	Beautify(p, "Least endangered applications", "low");
 
 	fNewLog.close();
 
@@ -537,18 +538,28 @@ void print(PProcessContainer p, string sOutputPath)
 	return;
 }
 
+void printAsJSON(PProcessContainer p)
+{
+	Json::Value entry;
+
+	BeautifyAsJSON(entry, p);
+
+	Json::StyledWriter styledWriter;
+	std::cout << styledWriter.write(entry);
+}
+
 string GetFilename(string sFullPath)
 {
 	auto index = sFullPath.rfind("\\");
 	if (index != string::npos)
-		sFullPath = sFullPath.substr(index+1, sFullPath.length());
+		sFullPath = sFullPath.substr(index + 1, sFullPath.length());
 	return sFullPath;
 }
 
 void Beautify(PProcessContainer p, string message, string severity)
 {
 	fNewLog << message << endl << endl;
-	for (auto &it : p->vProcessData)
+	for (auto& it : p->vProcessData)
 	{
 		int count = 0;
 		for (auto j : it.vsDLLs)
@@ -565,8 +576,33 @@ void Beautify(PProcessContainer p, string message, string severity)
 				fNewLog << j.sBinaryPath.c_str() << endl;
 			}
 		}
-		if(count)
+		if (count)
 			fNewLog << endl;
 	}
 
+}
+
+void BeautifyAsJSON(Json::Value& node, PProcessContainer p)
+{
+	for (auto& it : p->vProcessData)
+	{
+		Json::Value entry;
+
+		const string sFileName = GetFilename(it.sBinaryPath);
+
+		entry["application"] = sFileName;
+		entry["path"] = it.sBinaryPath;
+		entry["user"] = it.sUserName;
+
+		for (auto j : it.vsDLLs)
+		{
+			Json::Value module;
+			module["path"] = j.sBinaryPath;
+			module["severity"] = j.sServirity;
+
+			entry["modules"].append(module);
+		}
+
+		node.append(entry);
+	}
 }

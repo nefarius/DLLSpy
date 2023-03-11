@@ -16,6 +16,8 @@
 #include <fstream>
 #include <set>
 
+#include <json/json.h>
+
 #define DEBUG_PRINT 0
 
 using namespace std;
@@ -97,7 +99,9 @@ void RecursiveChecking(PProcessContainer p);
 vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPath);
 
 void print(PProcessContainer p, string sOutput);
+void printAsJSON(PProcessContainer p);
 void Beautify(PProcessContainer p, string message, string severity);
+void BeautifyAsJSON(Json::Value& node, PProcessContainer p);
 string GetFilename(string sFullPath);
 
 

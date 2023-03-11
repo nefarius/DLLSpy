@@ -1,9 +1,3 @@
 Dynamic Extraction
 Severity,Exist,Binary,DLL
 
-Static Extraction
-Severity,Exist,Binary,DLL
-
-Recursive Extraction
-Severity,Exist,Binary,DLL
-
