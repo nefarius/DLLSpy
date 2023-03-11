@@ -6,8 +6,6 @@
 #include "StringsExtractor.h"
 
 
-ofstream fLogFile;
-ofstream fNewLog;
 string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 
 unsigned char READABLE_CHARACTERS[90] = "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^&*()_+=-`{}[]:;,.? ";
@@ -18,14 +16,14 @@ int _tmain(int argc, TCHAR* argv[])
 
 	if (!IsUserAnAdmin())
 	{
-		cout << "DLLSpy must be activated with elevated privileges, shutting down." << endl;
+		cerr << "DLLSpy must be activated with elevated privileges, shutting down." << endl;
 		goto lblCleanup;
 	}
 	eReturn = ParseCommandLineArguments(argc, argv);
 
 lblCleanup:
 	if (ESTATUS_FAILED(eReturn) && eReturn != ESTATS_MISSING_ARGUMENTS)
-		cout << "DLLSpy exited with error: " << eReturn << endl;
+		cerr << "DLLSpy exited with error: " << eReturn << endl;
 	return 0;
 }
 
@@ -81,14 +79,13 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
 		eReturn = FindDllHijacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel);
 	}
 
-
 lblCleanup:
 	if (eReturn == ESTATS_MISSING_ARGUMENTS)
 	{
-		cout << "Usage: DLLSPY.exe" << endl;
-		cout << "-d [mandatory] Find DLL hijacking in all running processes and services." << endl;
-		cout << "-s [optional] Search for DLL references in the binary files of current running processes and services." << endl;
-		cout << "-r n [optional] Recursion search for DLL references in found DLL files previous scan." << endl << "   n is the number is the level of the recursion" << endl;
+		cerr << "Usage: DLLSPY.exe" << endl;
+		cerr << "-d [mandatory] Find DLL hijacking in all running processes and services." << endl;
+		cerr << "-s [optional] Search for DLL references in the binary files of current running processes and services." << endl;
+		cerr << "-r n [optional] Recursion search for DLL references in found DLL files previous scan." << endl << "   n is the number is the level of the recursion" << endl;
 	}
 	return eReturn;
 }
@@ -98,47 +95,39 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 
 	ESTATUS eReturn = ESTATUS_INVALID;
 	ProcessContainer p = ProcessContainer();
-	fLogFile.open("DLLSpy.log");
 
-	cout << "Start analyzing processes dynamically" << endl;
+	cerr << "Start analyzing processes dynamically" << endl;
 
-
-	fLogFile << "Dynamic Extraction" << endl;
-	fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
 	eReturn = EnumerateRunningProcesses(&p);
-	fLogFile << endl;
-	cout << "Done looking for dynamic processes hijacking" << endl;
-	cout << "======================================================================================" << endl;
+
+	cerr << endl;
+	cerr << "Done looking for dynamic processes hijacking" << endl;
+	cerr << "======================================================================================" << endl;
 
 	if (bStatic)
 	{
-		cout << "Start analyzing processes executables, static analysis" << endl;
-		fLogFile << "Static Extraction" << endl;
-		fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
+		cerr << "Start analyzing processes executables, static analysis" << endl;
 
 		eReturn = EnumerateProcessesBinaries(&p);
-		fLogFile << endl;
-		cout << "Done looking for static executables hijacking" << endl;
-		cout << "=================================================================================" << endl;
+
+		cerr << endl;
+		cerr << "Done looking for static executables hijacking" << endl;
+		cerr << "=================================================================================" << endl;
 	}
 
 	if (bRecrusive && level < 5)
 	{
-		cout << "Start Recursive search" << endl;
-		fLogFile << "Recursive Extraction" << endl;
-		fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
+		cerr << "Start Recursive search" << endl;
 
 		eReturn = RecursiveEnumeration(&p, level);
-		fLogFile << endl;
-		cout << "Done looking for Recursive Extraction" << endl;
-		cout << "=================================================================================" << endl;
+
+		cerr << endl;
+		cerr << "Done looking for Recursive Extraction" << endl;
+		cerr << "=================================================================================" << endl;
 	}
 
-	cout << "Results are in: " << OutputPath << endl;
-	fLogFile.close();
-
-	//,print(&p, OutputPath);
 	printAsJSON(&p);
+
 	return eReturn;
 }
 
@@ -148,7 +137,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 	PROCESSENTRY32 processEntry;
 	MODULEENTRY32 moduleEntry;
 	HANDLE hImpersonatedToken = NULL;
-	TCHAR* processName = "explorer.exe";
+	TCHAR* processName = _T("explorer.exe");
 	ESTATUS eReturn = ESTATUS_INVALID;
 	string sUserName;
 	string sDomainName;
@@ -181,8 +170,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 		p->vsProcessBinary.insert(sProcessPath);
 
 		ProcessData pData = ProcessData(sProcessPath.c_str(), sUserName.c_str(), sDomainName.c_str());
-
-
+		
 		while (Module32Next(moduleSnapshot, &moduleEntry))
 		{
 			eReturn = ESTATUS_SUCCESS;
@@ -217,8 +205,8 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 					pData.vsDLLs.insert(dData);
 					if (DEBUG_PRINT)
 					{
-						cout << "high Severity in process: " << sProcessName.c_str() << "\tDLL: " << sModuleName.c_str() << endl;
-						fLogFile << sUserName.c_str() << "," << "high," << "Yes, " << sProcessName.c_str() << "," << sModuleName.c_str() << endl;
+						cerr << "high Severity in process: " << sProcessName.c_str() << "\tDLL: " << sModuleName.c_str() << endl;
+						cerr << sUserName.c_str() << "," << "high," << "Yes, " << sProcessName.c_str() << "," << sModuleName.c_str() << endl;
 					}
 				}
 			}
@@ -242,7 +230,6 @@ lblCleanup:
 
 	return eReturn;
 }
-
 
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p)
 {
@@ -284,7 +271,6 @@ lblCleanup:
 	return eReturn;
 }
 
-
 ESTATUS GetServicesDLLS(PProcessContainer p)
 {
 	ESTATUS eReturn = ESTATUS_INVALID;
@@ -316,8 +302,6 @@ ESTATUS GetServicesDLLS(PProcessContainer p)
 	eReturn = ESTATUS_SUCCESS;
 	return eReturn;
 }
-
-
 
 ESTATUS GetHijackedDirectories(PProcessContainer p)
 {
@@ -396,11 +380,11 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 				{
 					if (bExist)
 					{
-						fLogFile << sUserName.c_str() << "," << "high, " << "Yes," << ProcessPath.c_str() << "," << sDllName << endl;
+						cerr << sUserName.c_str() << "," << "high, " << "Yes," << ProcessPath.c_str() << "," << sDllName << endl;
 					}
 					else if (!isSecureDir)
 					{
-						fLogFile << sUserName.c_str() << "," << "low, " << "No," << ProcessPath.c_str() << "," << sDllName << endl;
+						cerr << sUserName.c_str() << "," << "low, " << "No," << ProcessPath.c_str() << "," << sDllName << endl;
 					}
 				}
 			}
@@ -479,22 +463,6 @@ vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPa
 	return p->vProcessData.end();
 }
 
-
-void print(PProcessContainer p, string sOutputPath)
-{
-
-	fNewLog.open(sOutputPath.c_str(), std::ofstream::out | std::ofstream::app);
-
-	Beautify(p, "Critical endangered applications", "high");
-	Beautify(p, "medium endangered applications", "medium");
-	Beautify(p, "Least endangered applications", "low");
-
-	fNewLog.close();
-
-
-	return;
-}
-
 void printAsJSON(PProcessContainer p)
 {
 	Json::Value entry;
@@ -511,32 +479,6 @@ string GetFilename(string sFullPath)
 	if (index != string::npos)
 		sFullPath = sFullPath.substr(index + 1, sFullPath.length());
 	return sFullPath;
-}
-
-void Beautify(PProcessContainer p, string message, string severity)
-{
-	fNewLog << message << endl << endl;
-	for (auto& it : p->vProcessData)
-	{
-		int count = 0;
-		for (auto j : it.vsDLLs)
-		{
-			if (!j.sServirity.compare(severity))
-			{
-				count++;
-				if (count == 1)
-				{
-					string sFileName = GetFilename(it.sBinaryPath);
-					fNewLog << "Application:  " << sFileName << "," << "Path:  " << it.sBinaryPath.c_str() << "," << "User:  " << it.sUserName << "," << "Severity:  " << severity << endl;
-					fNewLog << "Modules" << endl;
-				}
-				fNewLog << j.sBinaryPath.c_str() << endl;
-			}
-		}
-		if (count)
-			fNewLog << endl;
-	}
-
 }
 
 void BeautifyAsJSON(Json::Value& node, PProcessContainer p)
