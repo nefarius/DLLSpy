@@ -88,7 +88,7 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 
 ESTATUS EnumerateRunningProcesses(PProcessContainer p);
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p);
-ESTATUS RecursieveEnumeration(PProcessContainer p, DWORD level);
+ESTATUS RecursiveEnumeration(PProcessContainer p, DWORD level);
 
 ESTATUS GetServicesDLLS(PProcessContainer p);
 ESTATUS GetHijackedDirectories(PProcessContainer p);
@@ -97,7 +97,7 @@ void RecursiveChecking(PProcessContainer p);
 vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPath);
 
 void print(PProcessContainer p, string sOutput);
-void Beautify(PProcessContainer p, string message, string sevirity);
+void Beautify(PProcessContainer p, string message, string severity);
 string GetFilename(string sFullPath);
 
 

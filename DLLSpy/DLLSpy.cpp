@@ -171,7 +171,7 @@ ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD
 		fLogFile << "Recursive Extraction" << endl;
 		fLogFile << "Severity," << "Exist," << "Binary," << "DLL" << endl;
 
-		eReturn = RecursieveEnumeration(&p, level);
+		eReturn = RecursiveEnumeration(&p, level);
 		fLogFile << endl;
 		cout << "Done looking for Recursive Extraction" << endl;
 		cout << "=================================================================================" << endl;
@@ -305,7 +305,7 @@ lblCleanup:
 	return eReturn;
 }
 
-ESTATUS RecursieveEnumeration(PProcessContainer p, DWORD level)
+ESTATUS RecursiveEnumeration(PProcessContainer p, DWORD level)
 {
 	ESTATUS eReturn = ESTATUS_INVALID;
 
@@ -484,7 +484,7 @@ void RecursiveChecking(PProcessContainer p)
 			string sOptionalDllPath = sProcessDir + sDllName;
 			string sDefinetDLLPath = "";
 
-			// Incase dll name contains expanded enviroment variables
+			// In case dll name contains expanded environment variables
 			if (PathFileExistsA(sDllName.c_str()))
 				sDefinetDLLPath = sDllName;
 			
@@ -545,7 +545,7 @@ string GetFilename(string sFullPath)
 	return sFullPath;
 }
 
-void Beautify(PProcessContainer p, string message, string sevirity)
+void Beautify(PProcessContainer p, string message, string severity)
 {
 	fNewLog << message << endl << endl;
 	for (auto &it : p->vProcessData)
@@ -553,13 +553,13 @@ void Beautify(PProcessContainer p, string message, string sevirity)
 		int count = 0;
 		for (auto j : it.vsDLLs)
 		{
-			if (!j.sServirity.compare(sevirity))
+			if (!j.sServirity.compare(severity))
 			{
 				count++;
 				if (count == 1)
 				{
 					string sFileName = GetFilename(it.sBinaryPath);
-					fNewLog << "Application:  " << sFileName << "," << "Path:  " << it.sBinaryPath.c_str() << "," << "User:  " << it.sUserName << "," << "Severity:  " << sevirity << endl;
+					fNewLog << "Application:  " << sFileName << "," << "Path:  " << it.sBinaryPath.c_str() << "," << "User:  " << it.sUserName << "," << "Severity:  " << severity << endl;
 					fNewLog << "Modules" << endl;
 				}
 				fNewLog << j.sBinaryPath.c_str() << endl;
