@@ -84,7 +84,7 @@ typedef struct _ProcessContainers
 
 ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[]);
 ESTATUS AssembleCSVPath(string &OutputPath);
-ESTATUS FindDllHjacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level);
+ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level);
 
 ESTATUS EnumerateRunningProcesses(PProcessContainer p);
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p);

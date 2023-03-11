@@ -92,7 +92,7 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR *argv[])
 		if (!sOutputPath.compare(""))
 			AssembleCSVPath(sOutputPath);
 
-		eReturn = FindDllHjacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel);
+		eReturn = FindDllHijacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel);
 	}
 
 
@@ -136,7 +136,7 @@ lblCleanup:
 	return eReturn;
 }
 
-ESTATUS FindDllHjacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level)
+ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level)
 {
 
 	ESTATUS eReturn = ESTATUS_INVALID;
