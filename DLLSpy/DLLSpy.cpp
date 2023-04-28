@@ -180,7 +180,6 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 
 			string sExeDirPath = GetDirPath(sModuleName);
 			bool isSecureDir = false;
-			//string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 
 			for (int i = 0; i < sizeof(sSystemPaths) / sizeof(sSystemPaths[0]); ++i)
 			{
@@ -308,7 +307,6 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
 	HANDLE hImpersonatedToken = NULL;
 	TCHAR* sProcessName = "explorer.exe";
 	ESTATUS eReturn = ESTATUS_INVALID;
-	//string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 	string sUserName;
 	string sDomainName;
 
@@ -410,7 +408,6 @@ lblCleanup:
 void RecursiveChecking(PProcessContainer p)
 {
 	ESTATUS eReturn = ESTATUS_INVALID;
-	//string sSystemPaths[] = { "C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows" };
 
 	p->vsProcessBinary.clear();
 
