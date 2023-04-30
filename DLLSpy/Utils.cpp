@@ -63,7 +63,7 @@ string ExpandPath(const string& sPath)
 
 void TrimString(string& token)
 {
-    for (size_t rIndex = token.length() - 1; rIndex >= 0; rIndex--)
+    for (int rIndex = static_cast<int>(token.length()) - 1; rIndex >= 0; rIndex--)
     {
         for (const char j : sBadChar)
         {

@@ -98,12 +98,12 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
                     if (StartStringOffset != -1)
                     {
                         Size2Copy = i - StartStringOffset;
-                        if (Size2Copy > MinimumStringSize)
+                        if (Size2Copy > MinimumStringSize && (StartStringOffset + Size2Copy) < MYSTRINGS_MAXIMUM_FILE_SIZE)
                         {
                             UnicodeStartStringOffset = -1;
                             string temp(reinterpret_cast<const char*>(InputFileBuffer + StartStringOffset), Size2Copy);
                             sOutput += temp + "\r\n";
-                            memcpy(OutputBufferPos, InputFileBuffer + StartStringOffset, Size2Copy);
+                            memcpy(OutputBufferPos, temp.data(), Size2Copy);
                             OutputBufferPos += Size2Copy;
 
                             memcpy(OutputBufferPos, TerminatorString, strlenTerminatorString);

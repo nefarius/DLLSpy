@@ -4,7 +4,7 @@
 #include <iostream>
 
 // limitations
-#define	MYSTRINGS_MAXIMUM_FILE_SIZE					30000000
+#define	MYSTRINGS_MAXIMUM_FILE_SIZE					300000000
 
 // error return codes
 #define MYSTRINGS_OK								0
