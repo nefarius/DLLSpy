@@ -147,6 +147,7 @@
     <ClInclude Include="DLLSpy.h" />
     <ClInclude Include="general.h" />
     <ClInclude Include="Impersonation.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="StringsExtractor.h" />
     <ClInclude Include="ServiceRegistry.h" />
     <ClInclude Include="Utils.h" />
@@ -157,6 +158,9 @@
     <ClCompile Include="StringsExtractor.cpp" />
     <ClCompile Include="ServiceRegistry.cpp" />
     <ClCompile Include="Utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DLLSpy.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
