@@ -2,12 +2,11 @@
 
 ESTATUS FindProcessId(const TCHAR* processName, DWORD* pProcessId)
 {
-    HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
     ESTATUS eReturn = ESTATUS_INVALID;
 
     // Take a snapshot of all processes in the system.
-    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    const HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (INVALID_HANDLE_VALUE == hProcessSnap)
     {
         eReturn = ESTATUS_ENUMERATION_ERROR;
@@ -45,11 +44,10 @@ ESTATUS GetImpersonatedToken(PHANDLE hImpersonatedToken, const TCHAR* sProcessNa
 {
     HANDLE hToken = nullptr;
     DWORD dwPid = 0;
-    ESTATUS eReturn;
     HANDLE hProcess = nullptr;
     BOOL bOpenProcessToken = FALSE;
 
-    eReturn = FindProcessId(sProcessName, &dwPid);
+    ESTATUS eReturn = FindProcessId(sProcessName, &dwPid);
     if (dwPid == 0 || ESTATUS_FAILED(eReturn))
     {
         goto lblCleanup;
@@ -89,7 +87,7 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
             NULL, &dwLength) && ERROR_INSUFFICIENT_BUFFER ==
         GetLastError())
     {
-        auto security = malloc(dwLength);
+        const auto security = malloc(dwLength);
         if (security && GetFileSecurity(
             folderName, OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, security,
             dwLength, &dwLength))

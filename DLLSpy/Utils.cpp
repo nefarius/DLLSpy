@@ -20,14 +20,14 @@ void GetDllFromToken(string& token)
 {
     string sLowerCaseToken = token;
     transform(sLowerCaseToken.begin(), sLowerCaseToken.end(), sLowerCaseToken.begin(), tolower);
-    size_t index = sLowerCaseToken.find(".dll");
+    const size_t index = sLowerCaseToken.find(".dll");
 
     //Ignore DLL, if it is in the form of  api-ms-win-eventing-provider-l1-1-0.dll, weird Microsoft rerouting to original dll
     //Ignore DLL, if it is in the form of  esi*.dll, too many options
     if (index == string::npos ||
         (count(sLowerCaseToken.begin(), sLowerCaseToken.end(), '-') > 3) ||
         (count(sLowerCaseToken.begin(), sLowerCaseToken.end(), '\\') == 1) ||
-        (sLowerCaseToken.find("*") != string::npos) ||
+        (sLowerCaseToken.find('*') != string::npos) ||
         (sLowerCaseToken.find("% ") != string::npos) ||
         (sLowerCaseToken.find(".text") != string::npos) ||
         (sLowerCaseToken.find(".library") != string::npos)
@@ -40,23 +40,23 @@ void GetDllFromToken(string& token)
     token = token.substr(0, (index + strlen(".dll")));
     GetCanonicalDllName(token);
     token = ExpandPath(token);
-    if (token.find("%") != string::npos)
+    if (token.find('%') != string::npos)
         token = "";
 }
 
 void GetCanonicalDllName(string& token)
 {
-    size_t index = token.find("%s");
+    const size_t index = token.find("%s");
 
     if ((count(token.begin(), token.end(), '\\') > 1) && index != string::npos)
         token = token.substr(0, index + 1);
     TrimString(token);
 }
 
-string ExpandPath(string sPath)
+string ExpandPath(const string& sPath)
 {
     TCHAR sCanonicalPath[FULL_PATH_SIZE] = {0};
-    DWORD dwSize = ExpandEnvironmentStrings(sPath.c_str(), sCanonicalPath, FULL_PATH_SIZE);
+    const DWORD dwSize = ExpandEnvironmentStrings(sPath.c_str(), sCanonicalPath, FULL_PATH_SIZE);
 
     return dwSize < FULL_PATH_SIZE ? string(sCanonicalPath) : sPath;
 }
@@ -77,14 +77,14 @@ void TrimString(string& token)
 }
 
 
-string GetDirPath(const string fullpath)
+string GetDirPath(const string& fullPath)
 {
-    size_t ulastIndex = fullpath.rfind('\\');
+    const size_t ulastIndex = fullPath.rfind('\\');
 
-    return string::npos != ulastIndex ? fullpath.substr(0, ulastIndex) : string();
+    return string::npos != ulastIndex ? fullPath.substr(0, ulastIndex) : string();
 }
 
-bool CompareStrings(const string s1, const string s2)
+bool CompareStrings(const string& s1, const string& s2)
 {
     if (s1.size() != s2.size())
         return false;

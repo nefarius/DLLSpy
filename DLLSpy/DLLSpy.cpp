@@ -172,7 +172,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
         string sProcessPath = moduleEntry.szExePath;
         p->vsProcessBinary.insert(sProcessPath);
 
-        auto pData = ProcessData(sProcessPath.c_str(), sUserName.c_str(), sDomainName.c_str());
+        auto pData = ProcessData(sProcessPath, sUserName, sDomainName);
 
         while (Module32Next(moduleSnapshot, &moduleEntry))
         {
@@ -184,9 +184,9 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
             string sExeDirPath = GetDirPath(sModuleName);
             bool isSecureDir = false;
 
-            for (int i = 0; i < sizeof(sSystemPaths) / sizeof(sSystemPaths[0]); ++i)
+            for (auto& sSystemPath : sSystemPaths)
             {
-                if (CompareStrings(sExeDirPath, sSystemPaths[i]))
+                if (CompareStrings(sExeDirPath, sSystemPath))
                 {
                     isSecureDir = true;
                     break;
@@ -195,13 +195,13 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
             if (!isSecureDir)
             {
                 // Check if current logged on user is able has write permission to directory, if so we can hijack a dll there
-                BOOL bDirAccessAllowd = FALSE;
-                BOOL bFileAllwod = FALSE;
+                BOOL bDirAccessAllowed = FALSE;
+                BOOL bFileAllowed = FALSE;
 
-                CanAccessDirectory(sExeDirPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowd);
-                CanAccessDirectory(sModuleName.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllwod);
+                CanAccessDirectory(sExeDirPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowed);
+                CanAccessDirectory(sModuleName.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllowed);
 
-                if (bDirAccessAllowd && bFileAllwod)
+                if (bDirAccessAllowed && bFileAllowed)
                 {
                     auto dData = DLLData(sModuleName, "high", "low", true);
                     pData.vsDLLs.insert(dData);
@@ -240,7 +240,7 @@ ESTATUS EnumerateProcessesBinaries(PProcessContainer p)
     eReturn = EnumerateServicesFromRegistry(p);
     if (eReturn != ESTATUS_SUCCESS)
         goto lblCleanup;
-    eReturn = GetServicesDLLS(p);
+    eReturn = GetServicesDLLs(p);
     if (eReturn != ESTATUS_SUCCESS)
         goto lblCleanup;
     eReturn = GetHijackedDirectories(p);
@@ -262,7 +262,7 @@ ESTATUS RecursiveEnumeration(PProcessContainer p, DWORD level)
         RecursiveChecking(p);
         p->msvStaticProcessMap.clear();
 
-        eReturn = GetServicesDLLS(p);
+        eReturn = GetServicesDLLs(p);
         if (eReturn != ESTATUS_SUCCESS)
             goto lblCleanup;
 
@@ -274,15 +274,15 @@ lblCleanup:
     return eReturn;
 }
 
-ESTATUS GetServicesDLLS(PProcessContainer p)
+ESTATUS GetServicesDLLs(PProcessContainer p)
 {
     ESTATUS eReturn = ESTATUS_INVALID;
     StringsExtractor m;
     long lOutputSize;
-    for (auto sServiceName : p->vsProcessBinary)
+    for (const auto& sServiceName : p->vsProcessBinary)
     {
         string sRawOutput;
-        char* a = m.GenerateStrings(READABLE_CHARACTERS, (char*)sServiceName.c_str(), 6, "\n", &lOutputSize,
+        char* a = m.GenerateStrings(READABLE_CHARACTERS, const_cast<char*>(sServiceName.c_str()), 6, "\n", &lOutputSize,
                                     sRawOutput);
         sRawOutput = string(&a[0], &a[lOutputSize]);
         free(a);
@@ -291,7 +291,7 @@ ESTATUS GetServicesDLLS(PProcessContainer p)
         istringstream tokenStream(sRawOutput);
         while (getline(tokenStream, token, '\n'))
         {
-            //Double filtring, make sure we don't have any wierd chracters
+            //Double filtering, make sure we don't have any weird characters
             GetDllFromToken(token);
             GetDllFromToken(token);
 
@@ -310,7 +310,7 @@ ESTATUS GetServicesDLLS(PProcessContainer p)
 ESTATUS GetHijackedDirectories(PProcessContainer p)
 {
     HANDLE hImpersonatedToken = nullptr;
-    TCHAR* sProcessName = "explorer.exe";
+    TCHAR* sProcessName = _T("explorer.exe");
     ESTATUS eReturn = ESTATUS_INVALID;
     string sUserName;
     string sDomainName;
@@ -327,18 +327,17 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
         BOOL bExist = FALSE;
         string ProcessPath = map_iter.first;
         string sProcessDir = GetDirPath(ProcessPath) + "\\";
-        auto pData = ProcessData(map_iter.first, sUserName.c_str(), sDomainName.c_str());
+        auto pData = ProcessData(map_iter.first, sUserName, sDomainName);
 
-        for (auto vec_iter = map_iter.second.cbegin(); vec_iter != map_iter.second.cend(); ++vec_iter)
+        for (const auto& sDllName : map_iter.second)
         {
             BOOL isSecureDir = FALSE;
-            string sDllName = *vec_iter;
             string sOptionalDllPath = sProcessDir + sDllName;
             auto dData = DLLData();
-            BOOL bDirAccessAllowd = FALSE;
-            BOOL bFileAllwod = FALSE;
+            BOOL bDirAccessAllowed = FALSE;
+            BOOL bFileAllowed = FALSE;
 
-            // If the DLL is in full path foramt, there is no chance for hijacking even if the DLL exist
+            // If the DLL is in full path format, there is no chance for hijacking even if the DLL exist
             if (PathFileExistsA(sDllName.c_str()))
                 break;
 
@@ -346,17 +345,17 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
             {
                 bExist = TRUE;
 
-                CanAccessDirectory(sProcessDir.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowd);
-                CanAccessDirectory(sOptionalDllPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllwod);
+                CanAccessDirectory(sProcessDir.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowed);
+                CanAccessDirectory(sOptionalDllPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllowed);
 
-                if (!bDirAccessAllowd || !bFileAllwod)
+                if (!bDirAccessAllowed || !bFileAllowed)
                     isSecureDir = TRUE;
             }
             else
             {
-                for (int i = 0; i < sizeof(sSystemPaths) / sizeof(sSystemPaths[0]); ++i)
+                for (auto& sSystemPath : sSystemPaths)
                 {
-                    string sSystemDll = sSystemPaths[i] + "\\" + sDllName;
+                    string sSystemDll = sSystemPath + "\\" + sDllName;
                     if (PathFileExistsA(sSystemDll.c_str()))
                     {
                         isSecureDir = TRUE;
@@ -419,36 +418,35 @@ void RecursiveChecking(PProcessContainer p)
 
     for (auto& map_iter : p->msvStaticProcessMap)
     {
-        string ProcessPath = map_iter.first;
+        const string ProcessPath = map_iter.first;
         string sProcessDir = GetDirPath(ProcessPath) + "\\";
 
 
-        for (auto vec_iter = map_iter.second.cbegin(); vec_iter != map_iter.second.cend(); ++vec_iter)
+        for (const auto& sDllName : map_iter.second)
         {
-            string sDllName = *vec_iter;
             string sOptionalDllPath = sProcessDir + sDllName;
-            string sDefinetDLLPath = "";
+            string sDefinedDLLPath = "";
 
             // In case dll name contains expanded environment variables
             if (PathFileExistsA(sDllName.c_str()))
-                sDefinetDLLPath = sDllName;
+                sDefinedDLLPath = sDllName;
 
             else if (PathFileExistsA(sOptionalDllPath.c_str()))
-                sDefinetDLLPath = sOptionalDllPath;
+                sDefinedDLLPath = sOptionalDllPath;
             else
             {
-                for (int i = 0; i < sizeof(sSystemPaths) / sizeof(sSystemPaths[0]); ++i)
+                for (auto& sSystemPath : sSystemPaths)
                 {
-                    string sSystemDll = sSystemPaths[i] + "\\" + sDllName;
+                    string sSystemDll = sSystemPath + "\\" + sDllName;
                     if (PathFileExistsA(sSystemDll.c_str()))
                     {
-                        sDefinetDLLPath = sSystemDll;
+                        sDefinedDLLPath = sSystemDll;
                         break;
                     }
                 }
             }
-            if (sDefinetDLLPath.compare("") && p->sGlobalBinaries.find(sDefinetDLLPath) == p->sGlobalBinaries.end())
-                p->vsProcessBinary.insert(sDefinetDLLPath);
+            if (sDefinedDLLPath.compare("") && p->sGlobalBinaries.find(sDefinedDLLPath) == p->sGlobalBinaries.end())
+                p->vsProcessBinary.insert(sDefinedDLLPath);
         }
     }
 }
@@ -476,7 +474,7 @@ void printAsJSON(PProcessContainer p)
 
 string GetFilename(string sFullPath)
 {
-    auto index = sFullPath.rfind("\\");
+    const auto index = sFullPath.rfind('\\');
     if (index != string::npos)
         sFullPath = sFullPath.substr(index + 1, sFullPath.length());
     return sFullPath;

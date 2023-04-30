@@ -7,7 +7,7 @@ ESTATUS EnumerateServicesFromRegistry(PProcessContainer p)
     LSTATUS lResult = 0;
     HKEY hKey;
     ESTATUS eReturn = ESTATUS_INVALID;
-    lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\", 0,
+    lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, R"(SYSTEM\CurrentControlSet\Services\)", 0,
                            KEY_ENUMERATE_SUB_KEYS | KEY_READ | KEY_QUERY_VALUE, &hKey);
     if (lResult == ERROR_SUCCESS)
     {
@@ -37,11 +37,11 @@ ESTATUS EnumerateServicesFromRegistry(PProcessContainer p)
                 retCode = RegEnumKeyEx(hKey, i, achKey, &cbName, nullptr, nullptr, nullptr, &ftLastWriteTime);
                 if (retCode == ERROR_SUCCESS)
                 {
-                    TCHAR cKeyName[MAX_PATH] = "SYSTEM\\CurrentControlSet\\Services\\";
+                    TCHAR cKeyName[MAX_PATH] = R"(SYSTEM\CurrentControlSet\Services\)";
                     strncat_s(cKeyName, MAX_PATH, achKey, strlen(achKey));
-                    string ServicePath = "";
-                    ESTATUS dwResult = GetServiceBinary(cKeyName, ServicePath);
-                    if (ServicePath != "" && dwResult == ESTATUS_SUCCESS)
+                    string ServicePath;
+                    const ESTATUS dwResult = GetServiceBinary(cKeyName, ServicePath);
+                    if (!ServicePath.empty() && dwResult == ESTATUS_SUCCESS)
                     {
                         if (p->vsProcessBinary.find(ServicePath) == p->vsProcessBinary.end())
                             p->vsProcessBinary.insert(ServicePath);
@@ -51,7 +51,7 @@ ESTATUS EnumerateServicesFromRegistry(PProcessContainer p)
         }
         RegCloseKey(hKey);
     }
-    if (p->vsProcessBinary.size() > 0)
+    if (!p->vsProcessBinary.empty())
         eReturn = ESTATUS_SUCCESS;
 
     return eReturn;
@@ -71,7 +71,7 @@ ESTATUS GetServicePathFromRegistryDllKey(const TCHAR* cKeyName, string& ServiceP
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, cDLLKey, 0, KEY_ENUMERATE_SUB_KEYS | KEY_READ | KEY_QUERY_VALUE,
                      &hServiceDLLKey) == ERROR_SUCCESS)
     {
-        RegQueryValueExA(hServiceDLLKey, "ServiceDll", nullptr, &dwType, (LPBYTE)&cDLLName, &dwSize);
+        RegQueryValueExA(hServiceDLLKey, "ServiceDll", nullptr, &dwType, reinterpret_cast<LPBYTE>(&cDLLName), &dwSize);
         if (cDLLName[0] != '\0')
         {
             ServicePath = ExpandPath(string(cDLLName));
@@ -97,12 +97,12 @@ ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath)
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, cKeyName, 0, KEY_ENUMERATE_SUB_KEYS | KEY_READ | KEY_QUERY_VALUE, &hNewKey) ==
         ERROR_SUCCESS)
     {
-        RegQueryValueExA(hNewKey, "Start", nullptr, &dwType, (LPBYTE)&dwStartMode, &dwSize);
+        RegQueryValueExA(hNewKey, "Start", nullptr, &dwType, reinterpret_cast<LPBYTE>(&dwStartMode), &dwSize);
         dwSize = REG_DWORD;
-        RegQueryValueExA(hNewKey, "Type", nullptr, &dwType, (LPBYTE)&dwServiceType, &dwSize);
+        RegQueryValueExA(hNewKey, "Type", nullptr, &dwType, reinterpret_cast<LPBYTE>(&dwServiceType), &dwSize);
         dwType = REG_SZ;
         dwSize = FULL_PATH_SIZE;
-        RegQueryValueExA(hNewKey, "ImagePath", nullptr, &dwType, (LPBYTE)&cServiceImagePath, &dwSize);
+        RegQueryValueExA(hNewKey, "ImagePath", nullptr, &dwType, reinterpret_cast<LPBYTE>(&cServiceImagePath), &dwSize);
 
         if ((dwServiceType == 0x20 || dwServiceType == 0x10 || dwServiceType == 0x110) && (dwStartMode != 0x4) && (
             cServiceImagePath[0] != '\0'))

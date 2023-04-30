@@ -90,7 +90,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p);
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p);
 ESTATUS RecursiveEnumeration(PProcessContainer p, DWORD level);
 
-ESTATUS GetServicesDLLS(PProcessContainer p);
+ESTATUS GetServicesDLLs(PProcessContainer p);
 ESTATUS GetHijackedDirectories(PProcessContainer p);
 void RecursiveChecking(PProcessContainer p);
 
