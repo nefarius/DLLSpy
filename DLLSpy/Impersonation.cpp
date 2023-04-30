@@ -80,7 +80,7 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
 {
     DWORD dwLength = 0;
     bool bHasAccess = false;
-    ESTATUS eRetrun = ESTATUS_INVALID;
+    ESTATUS eReturn = ESTATUS_INVALID;
 
     if (!GetFileSecurity(
             folderName, OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, nullptr,
@@ -103,7 +103,7 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
             mapping.GenericAll = FILE_ALL_ACCESS;
 
             MapGenericMask(&genericAccessRights, &mapping);
-            eRetrun = ESTATUS_SUCCESS;
+            eReturn = ESTATUS_SUCCESS;
             if (AccessCheck(security, *hImpersonatedToken, genericAccessRights, &mapping, &privileges,
                             &privilegesLength, &grantedAccess, &result))
             {
@@ -112,10 +112,10 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
 
             free(security);
         }
-        eRetrun = ESTATUS_GET_FILE_SECURIT_ERROR;
+        eReturn = ESTATUS_GET_FILE_SECURIT_ERROR;
     }
 
-    return eRetrun;
+    return eReturn;
 }
 
 ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strDomain)
