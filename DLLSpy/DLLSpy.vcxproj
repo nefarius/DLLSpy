@@ -130,6 +130,7 @@
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -147,6 +148,7 @@
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
