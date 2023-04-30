@@ -24,20 +24,16 @@
 
 
 // Constructor
-StringsExtractor::StringsExtractor()
-{
-}
+StringsExtractor::StringsExtractor() = default;
 
 // Destructor
-StringsExtractor::~StringsExtractor()
-{
-}
+StringsExtractor::~StringsExtractor() = default;
 
 // ---------------------  
 // ---------------------
 
 char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* FileName, long MinimumStringSize,
-                                        char* TerminatorString, long* OutputSize, string& sOutput)
+                                        char* TerminatorString, long* OutputSize, string& sOutput) const
 {
     DWORD SizeOfBuffer;
     DWORD SizeActuallyRead;
@@ -75,7 +71,7 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
 
     UnicodeStartStringOffset = StartStringOffset = -1;
 
-    rc = ReadBinaryFileIntoMemory(FileName, (char**)&InputFileBuffer, &SizeOfBuffer, &SizeActuallyRead);
+    rc = ReadBinaryFileIntoMemory(FileName, reinterpret_cast<char**>(&InputFileBuffer), &SizeOfBuffer, &SizeActuallyRead);
 
     if (rc == 0)
     {
@@ -203,7 +199,7 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
 }
 
 long StringsExtractor::ReadBinaryFileIntoMemory(CHAR* CandidateFile, CHAR** FileBuffer, DWORD* SizeOfBuffer,
-                                                DWORD* SizeActuallyRead)
+                                                DWORD* SizeActuallyRead) const
 {
     long rc;
     DWORD SizeToRead;
@@ -228,7 +224,7 @@ long StringsExtractor::ReadBinaryFileIntoMemory(CHAR* CandidateFile, CHAR** File
 
     (*SizeOfBuffer) = SizeToRead + 2;
 
-    swprintf_s(wcCandidateFile, sizeof(wcCandidateFile) / 2, L"%S", CandidateFile);
+    (void)swprintf_s(wcCandidateFile, sizeof(wcCandidateFile) / 2, L"%S", CandidateFile);
 
     rc = ReadBinaryFileIntoMemory(wcCandidateFile, *FileBuffer, *SizeOfBuffer, SizeActuallyRead);
 

@@ -118,7 +118,7 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
     return eRetrun;
 }
 
-ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strdomain)
+ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strDomain)
 {
     DWORD dwSize = MAX_PATH;
     ESTATUS eReturn = ESTATUS_INVALID;
@@ -138,11 +138,12 @@ ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strdomain)
     if (!GetTokenInformation(hToken, TokenUser, ptu, dwLength, &dwLength))
         goto Cleanup;
 
-    if (!LookupAccountSid(nullptr, ptu->User.Sid, &strUser[0], &dwSize, &strdomain[0], &dwSize, &SidType))
+    if (!LookupAccountSid(nullptr, ptu->User.Sid, const_cast<LPSTR>(strUser.data()), &dwSize,
+                          const_cast<LPSTR>(strDomain.data()), &dwSize, &SidType))
     {
         eReturn = ESTATUS_DUPLICATE_TOKEN_ERROR;
     }
-    
+
 Cleanup:
 
     if (ptu != nullptr)

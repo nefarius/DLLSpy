@@ -63,11 +63,11 @@ string ExpandPath(const string& sPath)
 
 void TrimString(string& token)
 {
-    for (int rIndex = token.length() - 1; rIndex >= 0; rIndex--)
+    for (size_t rIndex = token.length() - 1; rIndex >= 0; rIndex--)
     {
-        for (size_t j = 0; j < sBadChar.length(); j++)
+        for (const char j : sBadChar)
         {
-            if (token[rIndex] == sBadChar[j])
+            if (token[rIndex] == j)
             {
                 token = token.substr(rIndex + 1);
                 return;
@@ -79,9 +79,9 @@ void TrimString(string& token)
 
 string GetDirPath(const string& fullPath)
 {
-    const size_t ulastIndex = fullPath.rfind('\\');
+    const size_t uLastIndex = fullPath.rfind('\\');
 
-    return string::npos != ulastIndex ? fullPath.substr(0, ulastIndex) : string();
+    return string::npos != uLastIndex ? fullPath.substr(0, uLastIndex) : string();
 }
 
 bool CompareStrings(const string& s1, const string& s2)
