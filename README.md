@@ -1,10 +1,9 @@
-<img src="assets/NSS-128x128.png" align="right" />
+# <img src="assets/logo_128x128.png" align="left" /> DLLSpy
 
-# DLLSpy
+[![MSBuild](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml/badge.svg)](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml)
+![GitHub all releases](https://img.shields.io/github/downloads/nefarius/DLLSpy/total)
 
 > *This is a fork of the fantastic [`DLLSpy`](https://github.com/cyberark/DLLSpy) project by CyberArk and contributors.*
-
-[![MSBuild](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml/badge.svg)](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml) ![GitHub all releases](https://img.shields.io/github/downloads/nefarius/DLLSpy/total)
 
 ## Why fork
 
