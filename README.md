@@ -3,6 +3,8 @@
 [![MSBuild](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml/badge.svg)](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml)
 ![GitHub all releases](https://img.shields.io/github/downloads/nefarius/DLLSpy/total)
 
+DLLSpy detects DLL hijacking in running processes, services and in their binaries.
+
 > *This is a fork of the fantastic [`DLLSpy`](https://github.com/cyberark/DLLSpy) project by CyberArk and contributors.*
 
 ## Why fork
