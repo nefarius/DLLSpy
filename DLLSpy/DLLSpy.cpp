@@ -492,7 +492,7 @@ void BeautifyAsJSON(Json::Value& node, PProcessContainer p)
         entry["path"] = it.sBinaryPath;
         entry["user"] = it.sUserName;
 
-        for (auto j : it.vsDLLs)
+        for (const auto j : it.vsDLLs)
         {
             Json::Value module;
             module["path"] = j.sBinaryPath;
