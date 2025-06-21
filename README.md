@@ -1,4 +1,4 @@
-# <img src="assets/NSS_128x128.png" align="left" /> DLLSpy
+# <img src="assets/NSS-128x128.png" align="left" /> DLLSpy
 
 [![MSBuild](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml/badge.svg)](https://github.com/nefarius/DLLSpy/actions/workflows/msbuild.yml)
 ![GitHub all releases](https://img.shields.io/github/downloads/nefarius/DLLSpy/total)
