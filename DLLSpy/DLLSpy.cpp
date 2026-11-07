@@ -454,7 +454,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
         {
             eReturn = ESTATUS_SUCCESS;
             const auto sModuleName = string(moduleEntry.szExePath);
-            if (!IsPlausibleDllName(sModuleName) || IsIgnoredDll(sModuleName))
+            if (sModuleName.empty() || IsIgnoredDll(sModuleName))
                 continue;
 
             const string sExeDirPath = GetDirPath(sModuleName);
@@ -630,14 +630,14 @@ ESTATUS GetHijackedDirectories(PProcessContainer p)
                 sSeverity = "high";
                 bExist = true;
             }
-            else if (ExistsInSystemPaths(sDllName))
-            {
-                continue;
-            }
             else if (!sAppDir.empty() && cache.IsWritable(sAppDir))
             {
                 sWritableDir = sAppDir;
                 sSeverity = "high";
+            }
+            else if (ExistsInSystemPaths(sDllName))
+            {
+                continue;
             }
             else
             {

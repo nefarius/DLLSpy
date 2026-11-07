@@ -47,7 +47,7 @@ A DLL is reported only when the process runs as another account, as `SYSTEM`, or
 | `high` | The DLL is already in a directory you can write, or it is missing and the application directory is writable. |
 | `medium` | The DLL is missing, the application directory is protected, and an earlier directory on the machine `PATH` is writable. |
 
-DLLs that already exist under `C:\Windows`, `C:\Windows\System32`, or `C:\Windows\System` are not reported. API-set names (`api-ms-*`, `ext-ms-*`) and `KnownDLLs` are ignored.
+A DLL that already exists under `C:\Windows`, `C:\Windows\System32`, or `C:\Windows\System` is not reported when the application directory cannot be written. A writable application directory is still reported, because Windows searches it first. API-set names (`api-ms-*`, `ext-ms-*`) and `KnownDLLs` are ignored.
 
 ### JSON
 
