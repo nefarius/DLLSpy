@@ -12,4 +12,5 @@ using namespace std;
 
 ESTATUS EnumerateServicesFromRegistry(PProcessContainer p);
 ESTATUS GetServicePathFromRegistryDllKey(const TCHAR *cKeyName, string &ServicePath);
-ESTATUS GetServiceBinary(const TCHAR *cKeyName, string &ServicePath);
+ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath, ProcessContext& context,
+                         const string& sReferenceUser, const string& sReferenceDomain);

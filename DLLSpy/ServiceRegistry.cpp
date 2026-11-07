@@ -59,11 +59,17 @@ ESTATUS EnumerateServicesFromRegistry(PProcessContainer p)
 					TCHAR cKeyName[MAX_PATH] = R"(SYSTEM\CurrentControlSet\Services\)";
 					strncat_s(cKeyName, MAX_PATH, achKey, strlen(achKey));
 					string ServicePath;
-					const ESTATUS dwResult = GetServiceBinary(cKeyName, ServicePath);
+					ProcessContext context;
+					const ESTATUS dwResult = GetServiceBinary(
+						cKeyName, ServicePath, context, p->sReferenceUser, p->sReferenceDomain);
 					if (!ServicePath.empty() && dwResult == ESTATUS_SUCCESS)
 					{
-						if (p->vsProcessBinary.find(ServicePath) == p->vsProcessBinary.end())
-							p->vsProcessBinary.insert(ServicePath);
+						RememberBinaryContext(p, ServicePath, context);
+						if (!IsUnprivilegedContext(context) || p->bIncludeAll)
+						{
+							if (p->vsProcessBinary.find(ServicePath) == p->vsProcessBinary.end())
+								p->vsProcessBinary.insert(ServicePath);
+						}
 					}
 				}
 			}
@@ -108,15 +114,61 @@ ESTATUS GetServicePathFromRegistryDllKey(const TCHAR* cKeyName, string& ServiceP
 	return eReturn;
 }
 
-ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath)
+static ProcessContext ContextFromObjectName(const string& sObjectName, const string& sReferenceUser,
+	const string& sReferenceDomain)
+{
+	ProcessContext context;
+	context.bElevated = true;
+	context.bSameUser = false;
+
+	string objectName = sObjectName;
+	const auto embeddedEnd = objectName.find('\0');
+	if (embeddedEnd != string::npos)
+		objectName.resize(embeddedEnd);
+
+	if (objectName.empty() || CompareStrings(objectName, "LocalSystem"))
+	{
+		context.sUserName = "SYSTEM";
+		context.sDomainName = "NT AUTHORITY";
+		return context;
+	}
+
+	string domain;
+	string user = objectName;
+	const auto split = objectName.find('\\');
+	if (split != string::npos)
+	{
+		domain = objectName.substr(0, split);
+		user = objectName.substr(split + 1);
+	}
+
+	context.sUserName = user;
+	context.sDomainName = domain == "." ? sReferenceDomain : domain;
+
+	const bool userMatches = CompareStrings(user, sReferenceUser);
+	const bool domainMatches = domain.empty() || domain == "." || CompareStrings(domain, sReferenceDomain);
+	if (userMatches && domainMatches && !sReferenceUser.empty())
+	{
+		context.bSameUser = true;
+		context.bElevated = false;
+	}
+
+	return context;
+}
+
+ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath, ProcessContext& context,
+	const string& sReferenceUser, const string& sReferenceDomain)
 {
 	HKEY hNewKey = nullptr;
 	DWORD dwSize = REG_DWORD;
 	DWORD dwType = REG_SZ;
 	DWORD dwServiceType = 0;
 	TCHAR cServiceImagePath[FULL_PATH_SIZE] = { 0 };
+	TCHAR cObjectName[FULL_PATH_SIZE] = { 0 };
 	DWORD dwStartMode = 0;
 	ESTATUS eReturn = ESTATUS_INVALID;
+	context = ProcessContext();
+	context.bElevated = true;
 
 	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, cKeyName, 0, KEY_ENUMERATE_SUB_KEYS | KEY_READ | KEY_QUERY_VALUE, &hNewKey) ==
 		ERROR_SUCCESS)
@@ -127,6 +179,10 @@ ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath)
 		dwType = REG_SZ;
 		dwSize = FULL_PATH_SIZE;
 		RegQueryValueExA(hNewKey, "ImagePath", nullptr, &dwType, reinterpret_cast<LPBYTE>(&cServiceImagePath), &dwSize);
+
+		dwType = REG_SZ;
+		dwSize = FULL_PATH_SIZE;
+		RegQueryValueExA(hNewKey, "ObjectName", nullptr, &dwType, reinterpret_cast<LPBYTE>(&cObjectName), &dwSize);
 
 		if ((dwServiceType == 0x20 || dwServiceType == 0x10 || dwServiceType == 0x110) && (dwStartMode != 0x4) && (
 			cServiceImagePath[0] != '\0'))
@@ -144,6 +200,9 @@ ESTATUS GetServiceBinary(const TCHAR* cKeyName, string& ServicePath)
 			}
 			else
 				eReturn = GetServicePathFromRegistryDllKey(cKeyName, ServicePath);
+
+			if (eReturn == ESTATUS_SUCCESS)
+				context = ContextFromObjectName(string(cObjectName), sReferenceUser, sReferenceDomain);
 		}
 	}
 

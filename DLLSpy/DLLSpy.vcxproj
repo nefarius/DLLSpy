@@ -221,6 +221,7 @@
     <ClInclude Include="DLLSpy.h" />
     <ClInclude Include="general.h" />
     <ClInclude Include="Impersonation.h" />
+    <ClInclude Include="PeImports.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="StringsExtractor.h" />
     <ClInclude Include="ServiceRegistry.h" />
@@ -229,6 +230,7 @@
   <ItemGroup>
     <ClCompile Include="DLLSpy.cpp" />
     <ClCompile Include="Impersonation.cpp" />
+    <ClCompile Include="PeImports.cpp" />
     <ClCompile Include="StringsExtractor.cpp" />
     <ClCompile Include="ServiceRegistry.cpp" />
     <ClCompile Include="Utils.cpp" />

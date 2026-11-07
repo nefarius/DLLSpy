@@ -4,12 +4,260 @@
 #include "ServiceRegistry.h"
 #include "general.h"
 #include "StringsExtractor.h"
+#include "PeImports.h"
+
+#include <cctype>
+#include <cstdlib>
+#include <utility>
 
 
 string sSystemPaths[] = {"C:\\Windows\\System32", "C:\\Windows\\System", "C:\\Windows"};
 
 unsigned char READABLE_CHARACTERS[90] =
     "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^&*()_+=-`{}[]:;,.? ";
+
+static string TrimTrailingSeparators(string sPath)
+{
+    while (!sPath.empty() && (sPath.back() == '\\' || sPath.back() == '/'))
+        sPath.pop_back();
+    return sPath;
+}
+
+static int ContextRank(const ProcessContext& context)
+{
+    if (!context.bSameUser)
+        return 2;
+    if (context.bElevated)
+        return 1;
+    return 0;
+}
+
+static string ContextKey(const string& sPath)
+{
+    return ToLowerCopy(sPath);
+}
+
+void RememberBinaryContext(PProcessContainer p, const string& sPath, const ProcessContext& context)
+{
+    const string key = ContextKey(sPath);
+    const auto it = p->mBinaryContext.find(key);
+    if (it == p->mBinaryContext.end() || ContextRank(context) > ContextRank(it->second))
+        p->mBinaryContext[key] = context;
+}
+
+static ProcessContext LookupBinaryContext(PProcessContainer p, const string& sPath)
+{
+    const auto it = p->mBinaryContext.find(ContextKey(sPath));
+    if (it != p->mBinaryContext.end())
+        return it->second;
+
+    ProcessContext context;
+    context.bElevated = true;
+    context.bSameUser = false;
+    context.sUserName = "unknown";
+    return context;
+}
+
+static bool SkipProcess(PProcessContainer p, const ProcessContext& context)
+{
+    return !p->bIncludeAll && IsUnprivilegedContext(context);
+}
+
+static void MergeProcessData(PProcessContainer p, ProcessData& pData)
+{
+    if (pData.vsDLLs.empty())
+        return;
+
+    auto it = BinaryExists(p, pData.sBinaryPath);
+    if (it == p->vProcessData.end())
+    {
+        p->vProcessData.push_back(pData);
+        return;
+    }
+
+    it->vsDLLs.insert(pData.vsDLLs.begin(), pData.vsDLLs.end());
+
+    ProcessContext existing;
+    existing.bElevated = it->bElevated;
+    existing.bSameUser = it->bSameUser;
+    ProcessContext incoming;
+    incoming.bElevated = pData.bElevated;
+    incoming.bSameUser = pData.bSameUser;
+    if (ContextRank(incoming) > ContextRank(existing))
+    {
+        it->sUserName = pData.sUserName;
+        it->sDomainName = pData.sDomainName;
+        it->bElevated = pData.bElevated;
+        it->bSameUser = pData.bSameUser;
+    }
+}
+
+static string SourceName(DllRefSource eSource)
+{
+    switch (eSource)
+    {
+    case DllRefSource::DelayImport:
+        return "delay-import";
+    case DllRefSource::String:
+        return "string";
+    case DllRefSource::Import:
+    default:
+        return "import";
+    }
+}
+
+static bool IsAbsolutePath(const string& sPath)
+{
+    if (sPath.size() >= 3 && isalpha(static_cast<unsigned char>(sPath[0])) != 0 && sPath[1] == ':' &&
+        (sPath[2] == '\\' || sPath[2] == '/'))
+        return true;
+
+    return sPath.rfind("\\\\", 0) == 0;
+}
+
+static bool ExistsInSystemPaths(const string& sDllName)
+{
+    for (auto& sSystemPath : sSystemPaths)
+    {
+        const string sSystemDll = string(sSystemPath) + "\\" + sDllName;
+        if (PathFileExistsA(sSystemDll.c_str()))
+            return true;
+    }
+    return false;
+}
+
+class WritabilityCache
+{
+public:
+    explicit WritabilityCache(HANDLE token) : hToken(token)
+    {
+    }
+
+    bool IsWritable(const string& sDirectory)
+    {
+        const string key = ToLowerCopy(TrimTrailingSeparators(sDirectory));
+        const auto it = cache.find(key);
+        if (it != cache.end())
+            return it->second;
+
+        BOOL bAllowed = FALSE;
+        if (!key.empty())
+            CanAccessDirectory(sDirectory.c_str(), GENERIC_WRITE, &hToken, &bAllowed);
+
+        const bool bWritable = bAllowed == TRUE;
+        cache[key] = bWritable;
+        return bWritable;
+    }
+
+private:
+    HANDLE hToken;
+    map<string, bool> cache;
+};
+
+static vector<string> GetMachinePathDirectories()
+{
+    vector<string> directories;
+    HKEY hKey = nullptr;
+    if (RegOpenKeyExA(
+            HKEY_LOCAL_MACHINE,
+            R"(SYSTEM\CurrentControlSet\Control\Session Manager\Environment)",
+            0,
+            KEY_READ,
+            &hKey) != ERROR_SUCCESS)
+        return directories;
+
+    DWORD dwType = 0;
+    DWORD dwSize = 0;
+    const LONG lSizeResult = RegQueryValueExA(hKey, "Path", nullptr, &dwType, nullptr, &dwSize);
+    if ((lSizeResult != ERROR_SUCCESS && lSizeResult != ERROR_MORE_DATA) || dwSize == 0)
+    {
+        RegCloseKey(hKey);
+        return directories;
+    }
+
+    string buffer(dwSize, '\0');
+    if (RegQueryValueExA(hKey, "Path", nullptr, &dwType, reinterpret_cast<LPBYTE>(buffer.data()), &dwSize) ==
+        ERROR_SUCCESS)
+    {
+        const auto end = buffer.find('\0');
+        if (end != string::npos)
+            buffer.resize(end);
+
+        buffer = ExpandPath(buffer);
+        string directory;
+        for (const char ch : buffer)
+        {
+            if (ch == ';')
+            {
+                directory = TrimTrailingSeparators(directory);
+                if (!directory.empty())
+                    directories.push_back(directory);
+                directory.clear();
+            }
+            else
+                directory.push_back(ch);
+        }
+
+        directory = TrimTrailingSeparators(directory);
+        if (!directory.empty())
+            directories.push_back(directory);
+    }
+
+    RegCloseKey(hKey);
+    return directories;
+}
+
+// Search PATH in order. An earlier non-writable directory that already contains the DLL wins.
+static string FindPlantablePathDirectory(const string& sDllName, const vector<string>& pathDirs, WritabilityCache& cache)
+{
+    for (const auto& directory : pathDirs)
+    {
+        if (cache.IsWritable(directory))
+            return directory;
+
+        const string candidate = directory + "\\" + sDllName;
+        if (PathFileExistsA(candidate.c_str()))
+            return {};
+    }
+    return {};
+}
+
+static void AddReference(vector<ImportRef>& refs, const string& sName, DllRefSource eSource)
+{
+    if (sName.empty() || !IsPlausibleDllName(sName) || IsIgnoredDll(sName))
+        return;
+
+    for (const auto& existing : refs)
+    {
+        if (_stricmp(existing.sName.c_str(), sName.c_str()) == 0)
+            return;
+    }
+
+    refs.push_back(ImportRef{sName, eSource});
+}
+
+static void CollectStringReferences(const string& sBinary, vector<ImportRef>& refs)
+{
+    StringsExtractor extractor;
+    long lOutputSize = 0;
+    string sRawOutput;
+    char* extracted = extractor.GenerateStrings(READABLE_CHARACTERS, sBinary.c_str(), 6, "\n", &lOutputSize, sRawOutput);
+    if (extracted == nullptr)
+        return;
+
+    sRawOutput.assign(extracted, extracted + lOutputSize);
+    free(extracted);
+
+    string token;
+    istringstream tokenStream(sRawOutput);
+    while (getline(tokenStream, token, '\n'))
+    {
+        GetDllFromToken(token);
+        GetDllFromToken(token);
+        if (!token.empty())
+            AddReference(refs, token, DllRefSource::String);
+    }
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {
@@ -30,10 +278,12 @@ lblCleanup:
 
 ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
 {
-    string sOutputPath = "";
+    string sOutputPath;
     bool bDynamic = false;
     bool bStatic = false;
     bool bRecursive = false;
+    bool bIncludeAll = false;
+    bool bStrings = false;
     DWORD dwRecursionLevel = 0;
     ESTATUS eReturn = ESTATS_MISSING_ARGUMENTS;
 
@@ -56,6 +306,10 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
                 bStatic = true;
             else if (!_stricmp(argv[i], "-d"))
                 bDynamic = true;
+            else if (!_stricmp(argv[i], "-a"))
+                bIncludeAll = true;
+            else if (!_stricmp(argv[i], "-t"))
+                bStrings = true;
 
             else if (!_stricmp(argv[i], "-r"))
             {
@@ -71,13 +325,13 @@ ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[])
                     goto lblCleanup;
             }
         }
-        if (bDynamic == false)
+        if (!bDynamic || (bStrings && !bStatic))
         {
             eReturn = ESTATS_MISSING_ARGUMENTS;
             goto lblCleanup;
         }
 
-        eReturn = FindDllHijacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel);
+        eReturn = FindDllHijacking(sOutputPath, bStatic, bRecursive, dwRecursionLevel, bIncludeAll, bStrings);
     }
 
 lblCleanup:
@@ -85,18 +339,22 @@ lblCleanup:
     {
         cerr << "Usage: DLLSPY.exe" << endl;
         cerr << "-d [mandatory] Find DLL hijacking in all running processes and services." << endl;
-        cerr << "-s [optional] Search for DLL references in the binary files of current running processes and services."
-            << endl;
+        cerr << "-s [optional] Read import and delay-import tables of running processes and services." << endl;
+        cerr << "-t [optional] Also scan binaries for DLL name strings. Requires -s." << endl;
+        cerr << "-a [optional] Include processes running unelevated as the current user." << endl;
         cerr << "-r n [optional] Recursion search for DLL references in found DLL files previous scan." << endl <<
             "   n is the number is the level of the recursion" << endl;
     }
     return eReturn;
 }
 
-ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level)
+ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level,
+                         bool bIncludeAll, bool bStrings)
 {
     ESTATUS eReturn = ESTATUS_INVALID;
     auto p = ProcessContainer();
+    p.bIncludeAll = bIncludeAll;
+    p.bStrings = bStrings;
 
     cerr << "Start analyzing processes dynamically" << endl;
 
@@ -144,44 +402,62 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
     string sUserName;
     string sDomainName;
 
-    //Impersonate explorer.exe token in order to preform access check with week privileges
     eReturn = GetImpersonatedToken(&hImpersonatedToken, processName);
     if (hImpersonatedToken == nullptr || ESTATUS_FAILED(eReturn))
-    {
         goto lblCleanup;
-    }
+
     eReturn = GetLogonFromToken(hImpersonatedToken, sUserName, sDomainName);
+    p->sReferenceUser = sUserName;
+    p->sReferenceDomain = sDomainName;
 
     processEntry.dwSize = sizeof(PROCESSENTRY32);
-    // System Process
-    Process32First(hSnapshot, &processEntry);
+    if (hSnapshot == INVALID_HANDLE_VALUE || !Process32First(hSnapshot, &processEntry))
+        goto lblCleanup;
 
     while (Process32Next(hSnapshot, &processEntry))
     {
         HANDLE moduleSnapshot = CreateToolhelp32Snapshot(
             TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processEntry.th32ProcessID);
-        moduleEntry.dwSize = sizeof(MODULEENTRY32);
-        Module32First(moduleSnapshot, &moduleEntry);
         if (moduleSnapshot == INVALID_HANDLE_VALUE)
+            continue;
+
+        moduleEntry.dwSize = sizeof(MODULEENTRY32);
+        if (!Module32First(moduleSnapshot, &moduleEntry))
         {
+            CloseHandle(moduleSnapshot);
             continue;
         }
 
-        string sProcessName = processEntry.szExeFile;
-        string sProcessDir = GetDirPath(sProcessName);
-        string sProcessPath = moduleEntry.szExePath;
-        p->vsProcessBinary.insert(sProcessPath);
+        ProcessContext context;
+        if (ESTATUS_FAILED(GetProcessContext(processEntry.th32ProcessID, hImpersonatedToken, context)))
+        {
+            context.bSameUser = false;
+            context.bElevated = true;
+            if (context.sUserName.empty())
+                context.sUserName = "unknown";
+        }
 
-        auto pData = ProcessData(sProcessPath, sUserName, sDomainName);
+        const string sProcessPath = moduleEntry.szExePath;
+        RememberBinaryContext(p, sProcessPath, context);
+
+        if (SkipProcess(p, context))
+        {
+            CloseHandle(moduleSnapshot);
+            continue;
+        }
+
+        const string sProcessName = processEntry.szExeFile;
+        p->vsProcessBinary.insert(sProcessPath);
+        auto pData = ProcessData(sProcessPath, context);
 
         while (Module32Next(moduleSnapshot, &moduleEntry))
         {
             eReturn = ESTATUS_SUCCESS;
-            moduleEntry.dwSize = sizeof(MODULEENTRY32);
+            const auto sModuleName = string(moduleEntry.szExePath);
+            if (!IsPlausibleDllName(sModuleName) || IsIgnoredDll(sModuleName))
+                continue;
 
-            auto sModuleName = string(moduleEntry.szExePath);
-
-            string sExeDirPath = GetDirPath(sModuleName);
+            const string sExeDirPath = GetDirPath(sModuleName);
             bool isSecureDir = false;
 
             for (auto& sSystemPath : sSystemPaths)
@@ -194,7 +470,6 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
             }
             if (!isSecureDir)
             {
-                // Check if current logged on user is able has write permission to directory, if so we can hijack a dll there
                 BOOL bDirAccessAllowed = FALSE;
                 BOOL bFileAllowed = FALSE;
 
@@ -203,30 +478,23 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
 
                 if (bDirAccessAllowed && bFileAllowed)
                 {
-                    auto dData = DLLData(sModuleName, "high", "low", true);
+                    auto dData = DLLData(sModuleName, "high", "low", true, "loaded", sExeDirPath);
                     pData.vsDLLs.insert(dData);
                     if (DEBUG_PRINT)
                     {
                         cerr << "high Severity in process: " << sProcessName.c_str() << "\tDLL: " << sModuleName.c_str()
                             << endl;
-                        cerr << sUserName.c_str() << "," << "high," << "Yes, " << sProcessName.c_str() << "," <<
-                            sModuleName.c_str() << endl;
                     }
                 }
             }
         }
-        if (!pData.vsDLLs.empty())
-        {
-            auto it = BinaryExists(p, pData.sBinaryPath);
-            if (it != p->vProcessData.end())
-                it->vsDLLs.insert(pData.vsDLLs.begin(), pData.vsDLLs.end());
-            else
-                p->vProcessData.push_back(pData);
-        }
+
+        CloseHandle(moduleSnapshot);
+        MergeProcessData(p, pData);
     }
 
 lblCleanup:
-    if (hSnapshot != nullptr)
+    if (hSnapshot != nullptr && hSnapshot != INVALID_HANDLE_VALUE)
         CloseHandle(hSnapshot);
     if (hImpersonatedToken != nullptr)
         CloseHandle(hImpersonatedToken);
@@ -276,137 +544,116 @@ lblCleanup:
 
 ESTATUS GetServicesDLLs(PProcessContainer p)
 {
-    ESTATUS eReturn = ESTATUS_INVALID;
-    StringsExtractor m;
-    long lOutputSize;
-    for (const auto& sServiceName : p->vsProcessBinary)
+    for (const auto& sBinary : p->vsProcessBinary)
     {
-        string sRawOutput;
-        char* a = m.GenerateStrings(READABLE_CHARACTERS, sServiceName.c_str(), 6, "\n", &lOutputSize,
-                                    sRawOutput);
-        sRawOutput = string(&a[0], &a[lOutputSize]);
-        free(a);
+        vector<ImportRef> parsed;
+        GetPeImports(sBinary, parsed);
 
-        string token;
-        istringstream tokenStream(sRawOutput);
-        while (getline(tokenStream, token, '\n'))
-        {
-            //Double filtering, make sure we don't have any weird characters
-            GetDllFromToken(token);
-            GetDllFromToken(token);
+        vector<ImportRef> accepted;
+        for (const auto& ref : parsed)
+            AddReference(accepted, ref.sName, ref.eSource);
 
-            if (token.compare(""))
-                if (find(p->msvStaticProcessMap[sServiceName].begin(), p->msvStaticProcessMap[sServiceName].end(),
-                         token) == p->msvStaticProcessMap[sServiceName].end())
-                {
-                    p->msvStaticProcessMap[sServiceName].push_back(token);
-                }
-        }
+        if (p->bStrings)
+            CollectStringReferences(sBinary, accepted);
+
+        if (!accepted.empty())
+            p->msvStaticProcessMap[sBinary] = std::move(accepted);
     }
-    eReturn = ESTATUS_SUCCESS;
-    return eReturn;
+
+    return ESTATUS_SUCCESS;
 }
 
 ESTATUS GetHijackedDirectories(PProcessContainer p)
 {
     HANDLE hImpersonatedToken = nullptr;
     const TCHAR* sProcessName = _T("explorer.exe");
-    ESTATUS eReturn = ESTATUS_INVALID;
+    ESTATUS eReturn = GetImpersonatedToken(&hImpersonatedToken, sProcessName);
+    if (ESTATUS_FAILED(eReturn) || hImpersonatedToken == nullptr)
+    {
+        if (hImpersonatedToken != nullptr)
+            CloseHandle(hImpersonatedToken);
+        return eReturn;
+    }
+
     string sUserName;
     string sDomainName;
-
-    eReturn = GetImpersonatedToken(&hImpersonatedToken, sProcessName);
-    if (ESTATUS_FAILED(eReturn))
-        goto lblCleanup;
     eReturn = GetLogonFromToken(hImpersonatedToken, sUserName, sDomainName);
+    if (p->sReferenceUser.empty())
+    {
+        p->sReferenceUser = sUserName;
+        p->sReferenceDomain = sDomainName;
+    }
 
+    WritabilityCache cache(hImpersonatedToken);
+    const vector<string> pathDirs = GetMachinePathDirectories();
 
     eReturn = ESTATUS_SUCCESS;
     for (auto& map_iter : p->msvStaticProcessMap)
     {
-        BOOL bExist = FALSE;
-        string ProcessPath = map_iter.first;
-        string sProcessDir = GetDirPath(ProcessPath) + "\\";
-        auto pData = ProcessData(map_iter.first, sUserName, sDomainName);
+        const string ProcessPath = map_iter.first;
+        const ProcessContext context = LookupBinaryContext(p, ProcessPath);
+        if (SkipProcess(p, context))
+            continue;
 
-        for (const auto& sDllName : map_iter.second)
+        const string sAppDir = TrimTrailingSeparators(GetDirPath(ProcessPath));
+        auto pData = ProcessData(ProcessPath, context);
+
+        for (const auto& ref : map_iter.second)
         {
-            BOOL isSecureDir = FALSE;
-            string sOptionalDllPath = sProcessDir + sDllName;
-            auto dData = DLLData();
-            BOOL bDirAccessAllowed = FALSE;
-            BOOL bFileAllowed = FALSE;
+            const string& sDllName = ref.sName;
+            if (sDllName.empty())
+                continue;
 
-            // If the DLL is in full path format, there is no chance for hijacking even if the DLL exist
-            if (PathFileExistsA(sDllName.c_str()))
-                break;
+            const string sSource = SourceName(ref.eSource);
+            string sWritableDir;
+            string sSeverity;
+            bool bExist = false;
 
-            if (PathFileExistsA(sOptionalDllPath.c_str()))
+            if (IsAbsolutePath(sDllName))
             {
-                bExist = TRUE;
+                if (PathFileExistsA(sDllName.c_str()))
+                    continue;
 
-                CanAccessDirectory(sProcessDir.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bDirAccessAllowed);
-                CanAccessDirectory(sOptionalDllPath.c_str(), GENERIC_WRITE, &hImpersonatedToken, &bFileAllowed);
+                const string directory = GetDirPath(sDllName);
+                if (directory.empty() || !cache.IsWritable(directory))
+                    continue;
 
-                if (!bDirAccessAllowed || !bFileAllowed)
-                    isSecureDir = TRUE;
+                sWritableDir = directory;
+                sSeverity = "high";
+            }
+            else if (!sAppDir.empty() && PathFileExistsA((sAppDir + "\\" + sDllName).c_str()))
+            {
+                if (!cache.IsWritable(sAppDir))
+                    continue;
+
+                sWritableDir = sAppDir;
+                sSeverity = "high";
+                bExist = true;
+            }
+            else if (ExistsInSystemPaths(sDllName))
+            {
+                continue;
+            }
+            else if (!sAppDir.empty() && cache.IsWritable(sAppDir))
+            {
+                sWritableDir = sAppDir;
+                sSeverity = "high";
             }
             else
             {
-                for (auto& sSystemPath : sSystemPaths)
-                {
-                    string sSystemDll = sSystemPath + "\\" + sDllName;
-                    if (PathFileExistsA(sSystemDll.c_str()))
-                    {
-                        isSecureDir = TRUE;
-                        break;
-                    }
-                }
+                sWritableDir = FindPlantablePathDirectory(sDllName, pathDirs, cache);
+                if (sWritableDir.empty())
+                    continue;
+                sSeverity = "medium";
             }
 
-            if (!isSecureDir)
-            {
-                if (dData.bExist)
-                    dData.sServirity = "high";
-                else if (ends_with(pData.sBinaryPath, "dll"))
-                    dData.sServirity = "medium";
-                else
-                    dData.sServirity = "low";
-
-                dData.bExist = bExist == TRUE ? true : false;
-                dData.sBinaryPath = sDllName;
-                dData.sPermissionLevel = "low";
-                pData.vsDLLs.insert(dData);
-
-                if (DEBUG_PRINT)
-                {
-                    if (bExist)
-                    {
-                        cerr << sUserName.c_str() << "," << "high, " << "Yes," << ProcessPath.c_str() << "," << sDllName
-                            << endl;
-                    }
-                    else if (!isSecureDir)
-                    {
-                        cerr << sUserName.c_str() << "," << "low, " << "No," << ProcessPath.c_str() << "," << sDllName
-                            << endl;
-                    }
-                }
-            }
+            pData.vsDLLs.insert(DLLData(sDllName, sSeverity, "low", bExist, sSource, sWritableDir));
         }
 
-        if (!pData.vsDLLs.empty())
-        {
-            auto it = BinaryExists(p, pData.sBinaryPath);
-            if (it != p->vProcessData.end())
-                it->vsDLLs.insert(pData.vsDLLs.begin(), pData.vsDLLs.end());
-            else
-                p->vProcessData.push_back(pData);
-        }
+        MergeProcessData(p, pData);
     }
-lblCleanup:
-    if (hImpersonatedToken != nullptr)
-        CloseHandle(hImpersonatedToken);
 
+    CloseHandle(hImpersonatedToken);
     return eReturn;
 }
 
@@ -417,25 +664,23 @@ void RecursiveChecking(PProcessContainer p)
     for (auto& map_iter : p->msvStaticProcessMap)
     {
         const string ProcessPath = map_iter.first;
-        string sProcessDir = GetDirPath(ProcessPath) + "\\";
+        const string sAppDir = TrimTrailingSeparators(GetDirPath(ProcessPath));
+        const ProcessContext parent = LookupBinaryContext(p, ProcessPath);
 
-
-        for (const auto& sDllName : map_iter.second)
+        for (const auto& ref : map_iter.second)
         {
-            string sOptionalDllPath = sProcessDir + sDllName;
-            string sDefinedDLLPath = "";
+            const string& sDllName = ref.sName;
+            string sDefinedDLLPath;
 
-            // In case dll name contains expanded environment variables
             if (PathFileExistsA(sDllName.c_str()))
                 sDefinedDLLPath = sDllName;
-
-            else if (PathFileExistsA(sOptionalDllPath.c_str()))
-                sDefinedDLLPath = sOptionalDllPath;
+            else if (!sAppDir.empty() && PathFileExistsA((sAppDir + "\\" + sDllName).c_str()))
+                sDefinedDLLPath = sAppDir + "\\" + sDllName;
             else
             {
                 for (auto& sSystemPath : sSystemPaths)
                 {
-                    string sSystemDll = sSystemPath + "\\" + sDllName;
+                    const string sSystemDll = string(sSystemPath) + "\\" + sDllName;
                     if (PathFileExistsA(sSystemDll.c_str()))
                     {
                         sDefinedDLLPath = sSystemDll;
@@ -443,8 +688,12 @@ void RecursiveChecking(PProcessContainer p)
                     }
                 }
             }
-            if (sDefinedDLLPath.compare("") && p->sGlobalBinaries.find(sDefinedDLLPath) == p->sGlobalBinaries.end())
+
+            if (!sDefinedDLLPath.empty() && p->sGlobalBinaries.find(sDefinedDLLPath) == p->sGlobalBinaries.end())
+            {
                 p->vsProcessBinary.insert(sDefinedDLLPath);
+                RememberBinaryContext(p, sDefinedDLLPath, parent);
+            }
         }
     }
 }
@@ -453,7 +702,7 @@ vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPa
 {
     for (auto it = p->vProcessData.begin(); it != p->vProcessData.end(); ++it)
     {
-        if (!(*it).sBinaryPath.compare(sBinaryPath))
+        if (_stricmp((*it).sBinaryPath.c_str(), sBinaryPath.c_str()) == 0)
             return it;
     }
 
@@ -489,12 +738,17 @@ void BeautifyAsJSON(Json::Value& node, PProcessContainer p)
         entry["application"] = sFileName;
         entry["path"] = it.sBinaryPath;
         entry["user"] = it.sUserName;
+        entry["elevated"] = it.bElevated;
+        entry["sameUser"] = it.bSameUser;
 
-        for (const auto j : it.vsDLLs)
+        for (const auto& j : it.vsDLLs)
         {
             Json::Value module;
             module["path"] = j.sBinaryPath;
             module["severity"] = j.sServirity;
+            module["source"] = j.sSource;
+            if (!j.sWritableDir.empty())
+                module["writableDir"] = j.sWritableDir;
 
             entry["modules"].append(module);
         }

@@ -24,13 +24,34 @@ Signed builds for x86, x64, and ARM64 are attached to each [GitHub release](http
 
 ## How to use
 
-I recommend to run the tool in an elevated PowerShell session and pipe the scan results into the `ConvertFrom-Json` cmdlet, like:
+Run DLLSpy from an elevated shell. Findings are JSON on stdout. Progress and errors go to stderr.
 
 ```PowerShell
 .\DLLSpy.exe -d -s | ConvertFrom-Json
 ```
 
-This will give you true objects for each discovered process you can explore or further process in whatever way you can imagine!
+### Options
+
+- `-d` (required) checks DLLs loaded by running processes.
+- `-s` reads the import and delay-import tables of running processes and services.
+- `-t`, together with `-s`, also scans binaries for `.dll` strings. Those references are low confidence and are tagged `"source": "string"`.
+- `-a` includes processes that run as you without elevation. They are omitted by default, because replacing a DLL there does not cross a privilege boundary.
+- `-r n` repeats the static scan `n` levels into referenced DLLs (`n` below 5).
+
+### Severity
+
+A DLL is reported only when the process runs as another account, as `SYSTEM`, or elevated, and you could write that DLL.
+
+| Severity | Meaning |
+| --- | --- |
+| `high` | The DLL is already in a directory you can write, or it is missing and the application directory is writable. |
+| `medium` | The DLL is missing, the application directory is protected, and an earlier directory on the machine `PATH` is writable. |
+
+DLLs that already exist under `C:\Windows`, `C:\Windows\System32`, or `C:\Windows\System` are not reported. API-set names (`api-ms-*`, `ext-ms-*`) and `KnownDLLs` are ignored.
+
+### JSON
+
+Each application has `application`, `path`, `user`, `elevated`, and `sameUser`. `user` is the account the process or service runs as. Each module has `path`, `severity`, and `source` (`loaded`, `import`, `delay-import`, or `string`). `writableDir` is present when a writable directory was identified.
 
 ## Build
 
