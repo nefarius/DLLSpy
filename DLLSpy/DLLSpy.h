@@ -10,7 +10,6 @@
 #include <map>
 #include <vector>
 #include <Shlwapi.h>
-#include <Shlobj.h>
 #include <algorithm>
 #include <string>
 #include <fstream>
@@ -31,7 +30,7 @@ public:
     bool bExist;
     bool bIsService;
 
-    DLLData::DLLData(string sBinaryPath, string sServirity, string sPermissionLevel, bool bExist)
+    DLLData(string sBinaryPath, string sServirity, string sPermissionLevel, bool bExist)
     {
         this->sBinaryPath = sBinaryPath;
         this->sServirity = sServirity;
@@ -39,13 +38,9 @@ public:
         this->bExist = bExist;
     }
 
-    DLLData::DLLData()
-    {
-    }
+    DLLData() = default;
 
-    DLLData::~DLLData()
-    {
-    }
+    ~DLLData() = default;
 
     bool operator <(const DLLData& a) const
     {
@@ -62,16 +57,14 @@ public:
     string sDomainName;
     bool bIsService;
 
-    ProcessData::ProcessData(string sBinaryPath, string sUserName, string sDomainName)
+    ProcessData(string sBinaryPath, string sUserName, string sDomainName)
     {
         this->sBinaryPath = sBinaryPath;
         this->sUserName = sUserName;
         this->sDomainName = sDomainName;
     }
 
-    ProcessData::~ProcessData()
-    {
-    }
+    ~ProcessData() = default;
 };
 
 typedef struct _ProcessContainers
@@ -84,7 +77,7 @@ typedef struct _ProcessContainers
 
 
 ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[]);
-ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level);
+ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level);
 
 ESTATUS EnumerateRunningProcesses(PProcessContainer p);
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p);

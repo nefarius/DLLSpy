@@ -93,7 +93,7 @@ lblCleanup:
     return eReturn;
 }
 
-ESTATUS FindDllHijacking(string OutputPath, bool bStatic, bool bRecrusive, DWORD level)
+ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level)
 {
     ESTATUS eReturn = ESTATUS_INVALID;
     auto p = ProcessContainer();
@@ -139,7 +139,7 @@ ESTATUS EnumerateRunningProcesses(PProcessContainer p)
     PROCESSENTRY32 processEntry;
     MODULEENTRY32 moduleEntry;
     HANDLE hImpersonatedToken = nullptr;
-    TCHAR* processName = _T("explorer.exe");
+    const TCHAR* processName = _T("explorer.exe");
     ESTATUS eReturn = ESTATUS_INVALID;
     string sUserName;
     string sDomainName;
@@ -282,7 +282,7 @@ ESTATUS GetServicesDLLs(PProcessContainer p)
     for (const auto& sServiceName : p->vsProcessBinary)
     {
         string sRawOutput;
-        char* a = m.GenerateStrings(READABLE_CHARACTERS, const_cast<char*>(sServiceName.c_str()), 6, "\n", &lOutputSize,
+        char* a = m.GenerateStrings(READABLE_CHARACTERS, sServiceName.c_str(), 6, "\n", &lOutputSize,
                                     sRawOutput);
         sRawOutput = string(&a[0], &a[lOutputSize]);
         free(a);
@@ -310,7 +310,7 @@ ESTATUS GetServicesDLLs(PProcessContainer p)
 ESTATUS GetHijackedDirectories(PProcessContainer p)
 {
     HANDLE hImpersonatedToken = nullptr;
-    TCHAR* sProcessName = _T("explorer.exe");
+    const TCHAR* sProcessName = _T("explorer.exe");
     ESTATUS eReturn = ESTATUS_INVALID;
     string sUserName;
     string sDomainName;
@@ -412,8 +412,6 @@ lblCleanup:
 
 void RecursiveChecking(PProcessContainer p)
 {
-    ESTATUS eReturn = ESTATUS_INVALID;
-
     p->vsProcessBinary.clear();
 
     for (auto& map_iter : p->msvStaticProcessMap)
