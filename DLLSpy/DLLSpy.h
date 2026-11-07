@@ -1,6 +1,8 @@
 #pragma once
 
 #include "general.h"
+#include "Impersonation.h"
+#include "PeImports.h"
 #include <windows.h>
 #include <iostream>
 #include <sstream>
@@ -27,24 +29,29 @@ public:
     string sBinaryPath;
     string sServirity;
     string sPermissionLevel;
-    bool bExist;
-    bool bIsService;
+    string sSource;
+    string sWritableDir;
+    bool bExist = false;
+    bool bIsService = false;
 
-    DLLData(string sBinaryPath, string sServirity, string sPermissionLevel, bool bExist)
+    DLLData(string sBinaryPath, string sServirity, string sPermissionLevel, bool bExist, string sSource,
+            string sWritableDir)
     {
         this->sBinaryPath = sBinaryPath;
         this->sServirity = sServirity;
         this->sPermissionLevel = sPermissionLevel;
         this->bExist = bExist;
+        this->sSource = sSource;
+        this->sWritableDir = sWritableDir;
     }
 
     DLLData() = default;
 
     ~DLLData() = default;
 
-    bool operator <(const DLLData& a) const
+    bool operator<(const DLLData& other) const
     {
-        return this->sBinaryPath < a.sBinaryPath;
+        return _stricmp(this->sBinaryPath.c_str(), other.sBinaryPath.c_str()) < 0;
     }
 };
 
@@ -55,13 +62,17 @@ public:
     string sBinaryPath;
     string sUserName;
     string sDomainName;
-    bool bIsService;
+    bool bElevated = false;
+    bool bSameUser = false;
+    bool bIsService = false;
 
-    ProcessData(string sBinaryPath, string sUserName, string sDomainName)
+    ProcessData(string sBinaryPath, const ProcessContext& context)
     {
         this->sBinaryPath = sBinaryPath;
-        this->sUserName = sUserName;
-        this->sDomainName = sDomainName;
+        this->sUserName = context.sUserName;
+        this->sDomainName = context.sDomainName;
+        this->bElevated = context.bElevated;
+        this->bSameUser = context.bSameUser;
     }
 
     ~ProcessData() = default;
@@ -72,12 +83,18 @@ typedef struct _ProcessContainers
     set<string> vsProcessBinary;
     set<string> sGlobalBinaries;
     vector<ProcessData> vProcessData;
-    map<string, vector<string>> msvStaticProcessMap;
+    map<string, vector<ImportRef>> msvStaticProcessMap;
+    map<string, ProcessContext> mBinaryContext;
+    string sReferenceUser;
+    string sReferenceDomain;
+    bool bIncludeAll = false;
+    bool bStrings = false;
 } ProcessContainer, *PProcessContainer;
 
 
 ESTATUS ParseCommandLineArguments(int argc, TCHAR* argv[]);
-ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level);
+ESTATUS FindDllHijacking([[maybe_unused]] string OutputPath, bool bStatic, bool bRecrusive, DWORD level,
+                         bool bIncludeAll, bool bStrings);
 
 ESTATUS EnumerateRunningProcesses(PProcessContainer p);
 ESTATUS EnumerateProcessesBinaries(PProcessContainer p);
@@ -86,6 +103,7 @@ ESTATUS RecursiveEnumeration(PProcessContainer p, DWORD level);
 ESTATUS GetServicesDLLs(PProcessContainer p);
 ESTATUS GetHijackedDirectories(PProcessContainer p);
 void RecursiveChecking(PProcessContainer p);
+void RememberBinaryContext(PProcessContainer p, const string& sPath, const ProcessContext& context);
 
 vector<ProcessData>::iterator BinaryExists(PProcessContainer p, string sBinaryPath);
 

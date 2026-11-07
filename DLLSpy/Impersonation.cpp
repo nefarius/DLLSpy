@@ -164,3 +164,67 @@ Cleanup:
 
     return eReturn;
 }
+
+static bool TokensAreSameUser(HANDLE hToken, HANDLE hReferenceToken)
+{
+    if (hToken == nullptr || hReferenceToken == nullptr)
+        return false;
+
+    DWORD cbToken = 0;
+    DWORD cbReference = 0;
+    GetTokenInformation(hToken, TokenUser, nullptr, 0, &cbToken);
+    GetTokenInformation(hReferenceToken, TokenUser, nullptr, 0, &cbReference);
+    if (cbToken == 0 || cbReference == 0)
+        return false;
+
+    const auto tokenUser = static_cast<PTOKEN_USER>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, cbToken));
+    const auto referenceUser = static_cast<PTOKEN_USER>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, cbReference));
+    bool bSame = false;
+
+    if (tokenUser != nullptr && referenceUser != nullptr &&
+        GetTokenInformation(hToken, TokenUser, tokenUser, cbToken, &cbToken) &&
+        GetTokenInformation(hReferenceToken, TokenUser, referenceUser, cbReference, &cbReference))
+    {
+        bSame = EqualSid(tokenUser->User.Sid, referenceUser->User.Sid) == TRUE;
+    }
+
+    if (tokenUser != nullptr)
+        HeapFree(GetProcessHeap(), 0, tokenUser);
+    if (referenceUser != nullptr)
+        HeapFree(GetProcessHeap(), 0, referenceUser);
+
+    return bSame;
+}
+
+ESTATUS GetProcessContext(DWORD dwPid, HANDLE hReferenceToken, ProcessContext& context)
+{
+    context = ProcessContext();
+    context.bElevated = true;
+    context.bSameUser = false;
+
+    const HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwPid);
+    if (hProcess == nullptr)
+        return ESTATUS_DUPLICATE_TOKEN_ERROR;
+
+    HANDLE hToken = nullptr;
+    if (!OpenProcessToken(hProcess, TOKEN_QUERY, &hToken))
+    {
+        CloseHandle(hProcess);
+        return ESTATUS_DUPLICATE_TOKEN_ERROR;
+    }
+
+    TOKEN_ELEVATION elevation = {};
+    DWORD dwLength = 0;
+    if (GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation), &dwLength))
+        context.bElevated = elevation.TokenIsElevated != 0;
+
+    GetLogonFromToken(hToken, context.sUserName, context.sDomainName);
+    if (context.sUserName.empty())
+        context.sUserName = "unknown";
+
+    context.bSameUser = TokensAreSameUser(hToken, hReferenceToken);
+
+    CloseHandle(hToken);
+    CloseHandle(hProcess);
+    return ESTATUS_SUCCESS;
+}
