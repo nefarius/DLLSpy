@@ -396,4 +396,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/DLLSpy/vcpkg_installed
+/vcpkg_installed
+/vcpkg_installed_x86_stage
+/vcpkg_installed_x64_stage
+/vcpkg_installed_arm64_stage
+/bin
+/staged
