@@ -155,5 +155,12 @@ Cleanup:
 
     if (ptu != nullptr)
         HeapFree(GetProcessHeap(), 0, ptu);
+
+    if (ESTATUS_FAILED(eReturn))
+    {
+        strUser.clear();
+        strDomain.clear();
+    }
+
     return eReturn;
 }
