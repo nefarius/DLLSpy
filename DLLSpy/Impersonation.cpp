@@ -79,7 +79,6 @@ lblCleanup:
 ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDLE hImpersonatedToken, PBOOL hHasAccess)
 {
     DWORD dwLength = 0;
-    bool bHasAccess = false;
     ESTATUS eReturn = ESTATUS_INVALID;
 
     if (!GetFileSecurity(
@@ -120,12 +119,15 @@ ESTATUS CanAccessDirectory(LPCTSTR folderName, DWORD genericAccessRights, PHANDL
 
 ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strDomain)
 {
-    DWORD dwSize = MAX_PATH;
     ESTATUS eReturn = ESTATUS_INVALID;
     DWORD dwLength = 0;
     PTOKEN_USER ptu = nullptr;
     SID_NAME_USE SidType;
+    DWORD cchUser = MAX_PATH;
+    DWORD cchDomain = MAX_PATH;
 
+    strUser.assign(MAX_PATH, '\0');
+    strDomain.assign(MAX_PATH, '\0');
 
     if (GetTokenInformation(hToken, TokenUser, ptu, 0, &dwLength))
         goto Cleanup;
@@ -138,15 +140,27 @@ ESTATUS GetLogonFromToken(HANDLE hToken, string& strUser, string& strDomain)
     if (!GetTokenInformation(hToken, TokenUser, ptu, dwLength, &dwLength))
         goto Cleanup;
 
-    if (!LookupAccountSid(nullptr, ptu->User.Sid, const_cast<LPSTR>(strUser.data()), &dwSize,
-                          const_cast<LPSTR>(strDomain.data()), &dwSize, &SidType))
+    if (!LookupAccountSid(nullptr, ptu->User.Sid, strUser.data(), &cchUser,
+                          strDomain.data(), &cchDomain, &SidType))
     {
         eReturn = ESTATUS_DUPLICATE_TOKEN_ERROR;
+        goto Cleanup;
     }
+
+    strUser.resize(strnlen(strUser.c_str(), strUser.size()));
+    strDomain.resize(strnlen(strDomain.c_str(), strDomain.size()));
+    eReturn = ESTATUS_SUCCESS;
 
 Cleanup:
 
     if (ptu != nullptr)
         HeapFree(GetProcessHeap(), 0, ptu);
+
+    if (ESTATUS_FAILED(eReturn))
+    {
+        strUser.clear();
+        strDomain.clear();
+    }
+
     return eReturn;
 }

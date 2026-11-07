@@ -18,14 +18,14 @@ public:
     StringsExtractor();
     ~StringsExtractor();
 
-    char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* FileName, long MinimumStringSize,
-                                            char* TerminatorString, long* OutputSize, string& sOutput) const;
+    char* GenerateStrings(unsigned char* CharsOfInterest, const char* FileName, long MinimumStringSize,
+                          const char* TerminatorString, long* OutputSize, string& sOutput) const;
 
 private:
-    long StringsExtractor::ReadBinaryFileIntoMemory(CHAR* CandidateFile, CHAR** FileBuffer, DWORD* SizeOfBuffer,
-                                                    DWORD* SizeActuallyRead) const;
-    static long StringsExtractor::ReadBinaryFileIntoMemory(WCHAR* CandidateFile, CHAR* FileBuffer, DWORD SizeOfBuffer,
-                                                           DWORD* SizeActuallyRead);
-    static long StringsExtractor::MyGetFileSizeFromName(CHAR* CandidateFile, DWORD* FileSize);
-    static long StringsExtractor::MyGetFileSize(FILE* f);
+    long ReadBinaryFileIntoMemory(const CHAR* CandidateFile, CHAR** FileBuffer, DWORD* SizeOfBuffer,
+                                  DWORD* SizeActuallyRead) const;
+    static long ReadBinaryFileIntoMemory(WCHAR* CandidateFile, CHAR* FileBuffer, DWORD SizeOfBuffer,
+                                          DWORD* SizeActuallyRead);
+    static long MyGetFileSizeFromName(const CHAR* CandidateFile, DWORD* FileSize);
+    static long MyGetFileSize(FILE* f);
 };

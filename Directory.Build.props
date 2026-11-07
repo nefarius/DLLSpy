@@ -1,3 +1,11 @@
 <Project>
  <Import Project="$(MSBuildThisFileDirectory)vcpkg\scripts\buildsystems\msbuild\vcpkg.props" />
+ <!--
+   Keep vcpkg on the same v143 toolset the project links with. On a machine that also has a
+   newer toolset, vcpkg otherwise builds jsoncpp with that newer toolset and the link fails
+   (unresolved __std_find_trivial_1).
+ -->
+ <PropertyGroup>
+   <VcpkgAdditionalInstallOptions>$(VcpkgAdditionalInstallOptions) --overlay-triplets="$(MSBuildThisFileDirectory)triplets"</VcpkgAdditionalInstallOptions>
+ </PropertyGroup>
 </Project>

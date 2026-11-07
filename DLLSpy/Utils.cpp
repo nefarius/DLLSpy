@@ -5,11 +5,9 @@ string sBadChar = "';:@[]()^\"$&?! ";
 TCHAR* GetBinaryPath(TCHAR* cBinaryPath, const TCHAR* cPhrase)
 {
     TCHAR* temp = cBinaryPath;
-    size_t length = 0;
     cPhrase++;
     while (*cPhrase != '"' && *cPhrase != '\0')
     {
-        length++;
         *cBinaryPath++ = *cPhrase++;
     }
 
@@ -19,7 +17,8 @@ TCHAR* GetBinaryPath(TCHAR* cBinaryPath, const TCHAR* cPhrase)
 void GetDllFromToken(string& token)
 {
     string sLowerCaseToken = token;
-    transform(sLowerCaseToken.begin(), sLowerCaseToken.end(), sLowerCaseToken.begin(), tolower);
+    transform(sLowerCaseToken.begin(), sLowerCaseToken.end(), sLowerCaseToken.begin(),
+              [](unsigned char c) { return static_cast<char>(tolower(c)); });
     const size_t index = sLowerCaseToken.find(".dll");
 
     //Ignore DLL, if it is in the form of  api-ms-win-eventing-provider-l1-1-0.dll, weird Microsoft rerouting to original dll
@@ -90,7 +89,7 @@ bool CompareStrings(const string& s1, const string& s2)
         return false;
     for (unsigned int i = 0; i < s1.size(); ++i)
     {
-        if (tolower(s1[i]) != tolower(s2[i]))
+        if (tolower(static_cast<unsigned char>(s1[i])) != tolower(static_cast<unsigned char>(s2[i])))
             return false;
     }
     return true;

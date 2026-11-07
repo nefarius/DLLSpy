@@ -32,19 +32,19 @@ StringsExtractor::~StringsExtractor() = default;
 // ---------------------  
 // ---------------------
 
-char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* FileName, long MinimumStringSize,
-                                        char* TerminatorString, long* OutputSize, string& sOutput) const
+char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, const char* FileName, long MinimumStringSize,
+                                        const char* TerminatorString, long* OutputSize, string& sOutput) const
 {
     DWORD SizeOfBuffer;
     DWORD SizeActuallyRead;
     DWORD CharsOfInterestArray[256];
-    unsigned char* InputFileBuffer;
+    unsigned char* InputFileBuffer = nullptr;
     char* OutputBuffer;
     char* OutputBufferPos = nullptr;
     long rc;
     long StartStringOffset;
     long UnicodeStartStringOffset;
-    long NextUnicodeCharStart;
+    long NextUnicodeCharStart = 0;
     long i;
     long j;
     long strlenCharsOfInterest;
@@ -81,11 +81,6 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
             OutputBufferPos = OutputBuffer;
             for (i = 0; i < static_cast<long>(SizeActuallyRead) - 1; i++)
             {
-                // dbg
-                if (InputFileBuffer[i] == '‘')
-                {
-                    i = i;
-                }
                 if (CharsOfInterestArray[InputFileBuffer[i]])
                 {
                     if (StartStringOffset == -1 && InputFileBuffer[i] != ' ') // drop leading blanks!
@@ -151,9 +146,9 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
 
             if (StartStringOffset != -1)
             {
+                Size2Copy = i - StartStringOffset;
                 if (Size2Copy > MinimumStringSize)
                 {
-                    Size2Copy = i - StartStringOffset;
                     memcpy(OutputBufferPos, InputFileBuffer + StartStringOffset, Size2Copy);
                     OutputBufferPos += Size2Copy;
                 }
@@ -198,7 +193,7 @@ char* StringsExtractor::GenerateStrings(unsigned char* CharsOfInterest, char* Fi
     return (OutputBuffer);
 }
 
-long StringsExtractor::ReadBinaryFileIntoMemory(CHAR* CandidateFile, CHAR** FileBuffer, DWORD* SizeOfBuffer,
+long StringsExtractor::ReadBinaryFileIntoMemory(const CHAR* CandidateFile, CHAR** FileBuffer, DWORD* SizeOfBuffer,
                                                 DWORD* SizeActuallyRead) const
 {
     long rc;
@@ -276,14 +271,15 @@ long StringsExtractor::ReadBinaryFileIntoMemory(WCHAR* CandidateFile, CHAR* File
 }
 
 
-long StringsExtractor::MyGetFileSizeFromName(CHAR* CandidateFile, DWORD* FileSize)
+long StringsExtractor::MyGetFileSizeFromName(const CHAR* CandidateFile, DWORD* FileSize)
 {
     FILE* file;
     errno_t Err;
 
     (*FileSize) = 0;
 
-    if (Err = fopen_s(&file, CandidateFile, "rb"))
+    Err = fopen_s(&file, CandidateFile, "rb");
+    if (Err)
     {
         return (MYSTRINGS_FAILED_TO_OPEN_FILE);
     }
